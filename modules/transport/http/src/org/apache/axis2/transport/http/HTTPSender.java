@@ -20,33 +20,74 @@
 package org.apache.axis2.transport.http;
 
 
+import org.apache.axiom.mime.ContentType;
 import org.apache.axiom.mime.Header;
 import org.apache.axiom.om.OMAttribute;
 import org.apache.axiom.om.OMElement;
+import org.apache.axiom.om.OMOutputFormat;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.Constants;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.context.NamedValue;
+import org.apache.axis2.context.OperationContext;
+import org.apache.axis2.description.TransportOutDescription;
+import org.apache.axis2.i18n.Messages;
 import org.apache.axis2.transport.MessageFormatter;
 import org.apache.axis2.util.MessageProcessorSelector;
+import org.apache.axis2.util.Utils;
+import org.apache.axis2.wsdl.WSDLConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.http.HttpStatus;
 import org.apache.http.protocol.HTTP;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
+import java.text.ParseException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
 
 import javax.xml.namespace.QName;
 
 //TODO - It better if we can define these method in a interface move these into AbstractHTTPSender and get rid of this class.
-public abstract class HTTPSender extends AbstractHTTPSender {
+public abstract class HTTPSender {
 
     private static final Log log = LogFactory.getLog(HTTPSender.class);
     
+    private boolean chunked = false;
+    private String httpVersion = HTTPConstants.HEADER_PROTOCOL_11;
+    protected TransportOutDescription proxyOutSetting = null;
+    protected OMOutputFormat format = new OMOutputFormat();
+    
+    public void setChunked(boolean chunked) {
+        this.chunked = chunked;
+    }
+
+    public void setHttpVersion(String version) throws AxisFault {
+        if (version != null) {
+            if (HTTPConstants.HEADER_PROTOCOL_11.equals(version)) {
+                this.httpVersion = HTTPConstants.HEADER_PROTOCOL_11;
+            } else if (HTTPConstants.HEADER_PROTOCOL_10.equals(version)) {
+                this.httpVersion = HTTPConstants.HEADER_PROTOCOL_10;
+                // chunked is not possible with HTTP/1.0
+                this.chunked = false;
+            } else {
+                throw new AxisFault(
+                        "Parameter " + HTTPConstants.PROTOCOL_VERSION
+                                + " Can have values only HTTP/1.0 or HTTP/1.1");
+            }
+        }
+    }       
+
+    public void setFormat(OMOutputFormat format) {
+        this.format = format;
+    }
+
     /**
      * Start a new HTTP request.
      *
@@ -146,7 +187,83 @@ public abstract class HTTPSender extends AbstractHTTPSender {
             request.enableAuthentication(authenticator);
         }
 
-        request.execute();
+        setTimeouts(msgContext, request);
+
+        try {
+            request.execute();
+            boolean cleanup = true;
+            try {
+                int statusCode = request.getStatusCode();
+                log.trace("Handling response - " + statusCode);
+                boolean processResponse;
+                boolean fault;
+                if (statusCode == HttpStatus.SC_ACCEPTED) {
+                    processResponse = false;
+                    fault = false;
+                } else if (statusCode >= 200 && statusCode < 300) {
+                    processResponse = true;
+                    fault = false;
+                } else if (statusCode == HttpStatus.SC_INTERNAL_SERVER_ERROR
+                           || statusCode == HttpStatus.SC_BAD_REQUEST) {
+                    processResponse = true;
+                    fault = true;
+                } else {
+                    throw new AxisFault(Messages.getMessage("transportError", String.valueOf(statusCode),
+                                                            request.getStatusText()));
+                }
+                obtainHTTPHeaderInformation(request, msgContext);
+                if (processResponse) {
+                    OperationContext opContext = msgContext.getOperationContext();
+                    MessageContext inMessageContext = opContext == null ? null
+                            : opContext.getMessageContext(WSDLConstants.MESSAGE_LABEL_IN_VALUE);
+                    if (opContext != null) {
+                        InputStream in = request.getResponseContent();
+                        if (in != null) {
+                            String contentEncoding = request.getResponseHeader(HTTPConstants.HEADER_CONTENT_ENCODING);
+                            if (contentEncoding != null) {
+                                if (contentEncoding.equalsIgnoreCase(HTTPConstants.COMPRESSION_GZIP)) {
+                                    in = new GZIPInputStream(in);
+                                    // If the content-encoding is identity we can basically ignore
+                                    // it.
+                                } else if (!"identity".equalsIgnoreCase(contentEncoding)) {
+                                    throw new AxisFault("HTTP :" + "unsupported content-encoding of '"
+                                                        + contentEncoding + "' found");
+                                }
+                            }
+                            opContext.setProperty(MessageContext.TRANSPORT_IN, in);
+                            // This implements the behavior of the HTTPClient 3.x based transport in
+                            // Axis2 1.7: if AUTO_RELEASE_CONNECTION is enabled, we set the input stream
+                            // in the message context, but we nevertheless release the connection.
+                            // It is unclear in which situation this would actually be the right thing
+                            // to do.
+                            if (msgContext.isPropertyTrue(HTTPConstants.AUTO_RELEASE_CONNECTION)) {
+                                log.debug("AUTO_RELEASE_CONNECTION enabled; are you sure that you really want that?");
+                            } else {
+                                cleanup = false;
+                            }
+                        }
+                    }
+                    if (fault) {
+                        if (inMessageContext != null) {
+                            inMessageContext.setProcessingFault(true);
+                        }
+                        if (Utils.isClientThreadNonBlockingPropertySet(msgContext)) {
+                            throw new AxisFault(Messages.
+                                    getMessage("transportError",
+                                               String.valueOf(statusCode),
+                                               request.getStatusText()));
+                        }
+                    }
+                }
+            } finally {
+                if (cleanup) {
+                    request.releaseConnection();
+                }
+            }
+        } catch (IOException e) {
+            log.info("Unable to send to url[" + url + "]", e);
+            throw AxisFault.makeFault(e);
+        }
     }   
 
     private void addCustomHeaders(MessageContext msgContext, Request request) {
@@ -269,5 +386,101 @@ public abstract class HTTPSender extends AbstractHTTPSender {
         }
     
         return userAgentString;
+    }
+
+    /**
+     * This is used to get the dynamically set time out values from the message
+     * context. If the values are not available or invalid then the default
+     * values or the values set by the configuration will be used
+     * 
+     * @param msgContext
+     *            the active MessageContext
+     * @param request
+     *            request
+     */
+    private void setTimeouts(MessageContext msgContext, Request request) {
+        // If the SO_TIMEOUT of CONNECTION_TIMEOUT is set by dynamically the
+        // override the static config
+        Integer tempSoTimeoutProperty = (Integer) msgContext.getProperty(HTTPConstants.SO_TIMEOUT);
+        Integer tempConnTimeoutProperty = (Integer) msgContext
+                .getProperty(HTTPConstants.CONNECTION_TIMEOUT);
+        long timeout = msgContext.getOptions().getTimeOutInMilliSeconds();
+
+        if (tempConnTimeoutProperty != null) {
+            // timeout for initial connection
+            request.setConnectionTimeout(tempConnTimeoutProperty);
+        }
+
+        if (tempSoTimeoutProperty != null) {
+            // SO_TIMEOUT -- timeout for blocking reads
+            request.setSocketTimeout(tempSoTimeoutProperty);
+        } else {
+            // set timeout in client
+            if (timeout > 0) {
+                request.setSocketTimeout((int) timeout);
+            }
+        }
+    }
+
+    private void obtainHTTPHeaderInformation(Request request, MessageContext msgContext) throws AxisFault {
+        // Set RESPONSE properties onto the REQUEST message context. They will
+        // need to be copied off the request context onto
+        // the response context elsewhere, for example in the
+        // OutInOperationClient.
+        msgContext.setProperty(
+                MessageContext.TRANSPORT_HEADERS,
+                new CommonsTransportHeaders(request.getResponseHeaders()));
+        msgContext.setProperty(
+                HTTPConstants.MC_HTTP_STATUS_CODE,
+                new Integer(request.getStatusCode()));
+        
+        String contentTypeString = request.getResponseHeader(HTTPConstants.HEADER_CONTENT_TYPE);
+        if (contentTypeString != null) {
+            ContentType contentType;
+            try {
+                contentType = new ContentType(contentTypeString);
+            } catch (ParseException ex) {
+                throw AxisFault.makeFault(ex);
+            }
+            String charSetEnc = contentType.getParameter(HTTPConstants.CHAR_SET_ENCODING);
+            MessageContext inMessageContext = msgContext.getOperationContext().getMessageContext(
+                    WSDLConstants.MESSAGE_LABEL_IN_VALUE);
+            if (inMessageContext != null) {
+                inMessageContext.setProperty(Constants.Configuration.CONTENT_TYPE, contentTypeString);
+                inMessageContext.setProperty(Constants.Configuration.CHARACTER_SET_ENCODING, charSetEnc);
+            } else {
+                // Transport details will be stored in a HashMap so that anybody
+                // interested can
+                // retrieve them
+                Map<String,String> transportInfoMap = new HashMap<String,String>();
+                transportInfoMap.put(Constants.Configuration.CONTENT_TYPE, contentTypeString);
+                transportInfoMap.put(Constants.Configuration.CHARACTER_SET_ENCODING, charSetEnc);
+                // the HashMap is stored in the outgoing message.
+                msgContext.setProperty(Constants.Configuration.TRANSPORT_INFO_MAP, transportInfoMap);
+            }
+        }
+
+        Map<String,String> cookies = request.getCookies();
+        if (cookies != null) {
+            String customCookieId = (String) msgContext.getProperty(Constants.CUSTOM_COOKIE_ID);
+            String cookieString = null;
+            if (customCookieId != null) {
+                cookieString = buildCookieString(cookies, customCookieId);
+            }
+            if (cookieString == null) {
+                cookieString = buildCookieString(cookies, Constants.SESSION_COOKIE);
+            }
+            if (cookieString == null) {
+                cookieString = buildCookieString(cookies, Constants.SESSION_COOKIE_JSESSIONID);
+            }
+            if (cookieString != null) {
+                msgContext.getServiceContext().setProperty(HTTPConstants.COOKIE_STRING, cookieString);
+            }
+        }
+    }
+
+    private String buildCookieString(Map<String,String> cookies, String name) {
+        String value = cookies.get(name);
+        return value == null ? null : name + "=" + value;
     }
 }

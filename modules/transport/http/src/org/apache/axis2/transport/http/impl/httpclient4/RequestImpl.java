@@ -23,62 +23,58 @@ import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.zip.GZIPInputStream;
+import java.util.Map;
 
 import org.apache.axiom.mime.Header;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.MessageContext;
-import org.apache.axis2.context.OperationContext;
-import org.apache.axis2.i18n.Messages;
 import org.apache.axis2.transport.http.AxisRequestEntity;
 import org.apache.axis2.transport.http.HTTPAuthenticator;
 import org.apache.axis2.transport.http.HTTPConstants;
 import org.apache.axis2.transport.http.HTTPTransportConstants;
 import org.apache.axis2.transport.http.Request;
-import org.apache.axis2.util.Utils;
-import org.apache.axis2.wsdl.WSDLConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.http.HeaderElement;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
 import org.apache.http.HttpVersion;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.NTCredentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.auth.params.AuthPNames;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.params.AuthPolicy;
-import org.apache.http.client.params.ClientPNames;
-import org.apache.http.impl.auth.NTLMSchemeFactory;
-import org.apache.http.impl.client.AbstractHttpClient;
-import org.apache.http.params.CoreProtocolPNames;
-import org.apache.http.params.HttpParams;
-import org.apache.http.protocol.BasicHttpContext;
-import org.apache.http.protocol.HttpContext;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.util.EntityUtils;
 
 final class RequestImpl implements Request {
+    private static final String[] COOKIE_HEADER_NAMES = { HTTPConstants.HEADER_SET_COOKIE, HTTPConstants.HEADER_SET_COOKIE2 };
+    
     private static final Log log = LogFactory.getLog(RequestImpl.class);
     
-    protected final HTTPSenderImpl sender;
-    protected final MessageContext msgContext;
-    protected final URL url;
-    protected final HttpRequestBase method;
-    protected final AbstractHttpClient httpClient;
+    private final HttpClient httpClient;
+    private final MessageContext msgContext;
+    private final URL url;
+    private final HttpRequestBase method;
     private final HttpHost httpHost;
+    private final RequestConfig.Builder requestConfig = RequestConfig.custom();
+    private final HttpClientContext clientContext = HttpClientContext.create();
     private HttpResponse response;
 
-    RequestImpl(HTTPSenderImpl sender, MessageContext msgContext, final String methodName, URL url,
+    RequestImpl(HttpClient httpClient, MessageContext msgContext, final String methodName, URL url,
             AxisRequestEntity requestEntity) throws AxisFault {
-        this.sender = sender;
+        this.httpClient = httpClient;
         this.msgContext = msgContext;
         this.url = url;
-        httpClient = sender.getHttpClient(msgContext);
         if (requestEntity == null) {
             method = new HttpRequestBase() {
                 @Override
@@ -115,8 +111,7 @@ final class RequestImpl implements Request {
 
     @Override
     public void enableHTTP10() {
-        httpClient.getParams().setParameter(CoreProtocolPNames.PROTOCOL_VERSION,
-                HttpVersion.HTTP_1_0);
+        method.setProtocolVersion(HttpVersion.HTTP_1_0);
     }
 
     @Override
@@ -143,6 +138,16 @@ final class RequestImpl implements Request {
     }
 
     @Override
+    public void setConnectionTimeout(int timeout) {
+        requestConfig.setConnectTimeout(timeout);
+    }
+
+    @Override
+    public void setSocketTimeout(int timeout) {
+        requestConfig.setSocketTimeout(timeout);
+    }
+
+    @Override
     public int getStatusCode() {
         return response.getStatusLine().getStatusCode();
     }
@@ -153,22 +158,40 @@ final class RequestImpl implements Request {
     }
 
     @Override
+    public String getResponseHeader(String name) {
+        org.apache.http.Header header = response.getFirstHeader(name);
+        return header == null ? null : header.getValue();
+    }
+
+    @Override
     public Header[] getResponseHeaders() {
         return convertHeaders(response.getAllHeaders());
     }
 
     @Override
-    public void execute() throws AxisFault {
-        try {
-            executeMethod();
-            handleResponse();
-        } catch (IOException e) {
-            log.info("Unable to send to url[" + url + "]", e);
-            throw AxisFault.makeFault(e);
+    public Map<String,String> getCookies() {
+        Map<String,String> cookies = null;
+        for (String name : COOKIE_HEADER_NAMES) {
+            for (org.apache.http.Header header : response.getHeaders(name)) {
+                for (HeaderElement element : header.getElements()) {
+                    if (cookies == null) {
+                        cookies = new HashMap<String,String>();
+                    }
+                    cookies.put(element.getName(), element.getValue());
+                }
+            }
         }
+        return cookies;
     }
 
-    private void executeMethod() throws IOException {
+    @Override
+    public InputStream getResponseContent() throws IOException {
+        HttpEntity entity = response.getEntity();
+        return entity == null ? null : entity.getContent();
+    }
+
+    @Override
+    public void execute() throws IOException {
         populateHostConfiguration();
 
         // add compression headers if needed
@@ -177,89 +200,18 @@ final class RequestImpl implements Request {
                              HTTPConstants.COMPRESSION_GZIP);
         }
 
-        if (msgContext.getProperty(HTTPConstants.HTTP_METHOD_PARAMS) != null) {
-            HttpParams params = (HttpParams) msgContext
-                    .getProperty(HTTPConstants.HTTP_METHOD_PARAMS);
-            method.setParams(params);
-        }
-
         String cookiePolicy = (String) msgContext.getProperty(HTTPConstants.COOKIE_POLICY);
         if (cookiePolicy != null) {
-            method.getParams().setParameter(ClientPNames.COOKIE_POLICY, cookiePolicy);
+            requestConfig.setCookieSpec(cookiePolicy);
         }
 
-        sender.setTimeouts(msgContext, method);
-        HttpContext localContext = new BasicHttpContext();
-        // Why do we have add context here
-        response = httpClient.execute(httpHost, method, localContext);
+        method.setConfig(requestConfig.build());
+
+        response = httpClient.execute(httpHost, method, clientContext);
     }
 
-    private void handleResponse() throws IOException {
-        boolean cleanup = true;
-        try {
-            int statusCode = getStatusCode();
-            log.trace("Handling response - " + statusCode);
-            boolean processResponse;
-            boolean fault;
-            if (statusCode == HttpStatus.SC_ACCEPTED) {
-                processResponse = false;
-                fault = false;
-            } else if (statusCode >= 200 && statusCode < 300) {
-                processResponse = true;
-                fault = false;
-            } else if (statusCode == HttpStatus.SC_INTERNAL_SERVER_ERROR
-                       || statusCode == HttpStatus.SC_BAD_REQUEST) {
-                processResponse = true;
-                fault = true;
-            } else {
-                throw new AxisFault(Messages.getMessage("transportError", String.valueOf(statusCode),
-                                                        getStatusText()));
-            }
-            sender.obtainHTTPHeaderInformation(this, response, msgContext);
-            if (processResponse) {
-                OperationContext opContext = msgContext.getOperationContext();
-                MessageContext inMessageContext = opContext == null ? null
-                        : opContext.getMessageContext(WSDLConstants.MESSAGE_LABEL_IN_VALUE);
-                if (opContext != null) {
-                    HttpEntity httpEntity = response.getEntity();
-                    if (httpEntity != null) {
-                        InputStream in = httpEntity.getContent();
-                        org.apache.http.Header contentEncoding = httpEntity.getContentEncoding();
-                        if (contentEncoding != null) {
-                            if (contentEncoding.getValue().equalsIgnoreCase(HTTPConstants.COMPRESSION_GZIP)) {
-                                in = new GZIPInputStream(in);
-                                // If the content-encoding is identity we can basically ignore
-                                // it.
-                            } else if (!"identity".equalsIgnoreCase(contentEncoding.getValue())) {
-                                throw new AxisFault("HTTP :" + "unsupported content-encoding of '"
-                                                    + contentEncoding.getValue() + "' found");
-                            }
-                        }
-                        opContext.setProperty(MessageContext.TRANSPORT_IN, in);
-                        cleanup = false;
-                    }
-                }
-                if (fault) {
-                    if (inMessageContext != null) {
-                        inMessageContext.setProcessingFault(true);
-                    }
-                    if (Utils.isClientThreadNonBlockingPropertySet(msgContext)) {
-                        throw new AxisFault(Messages.
-                                getMessage("transportError",
-                                           String.valueOf(statusCode),
-                                           getStatusText()));
-                    }
-                }
-            }
-        } finally {
-            if (cleanup) {
-                cleanup(response);
-            }
-        }
-
-    }
-
-    private void cleanup(HttpResponse response) {
+    @Override
+    public void releaseConnection() {
         log.trace("Cleaning response : " + response);
         HttpEntity entity = response.getEntity();
         if (entity != null) {
@@ -285,7 +237,7 @@ final class RequestImpl implements Request {
             if (log.isDebugEnabled()) {
                 log.debug("Configuring HTTP proxy.");
             }
-            HTTPProxyConfigurator.configure(msgContext, httpClient);
+            HTTPProxyConfigurator.configure(msgContext, requestConfig, clientContext);
         }
     }
 
@@ -296,7 +248,7 @@ final class RequestImpl implements Request {
      */
     @Override
     public void enableAuthentication(HTTPAuthenticator authenticator) {
-        method.getParams().setBooleanParameter(ClientPNames.HANDLE_AUTHENTICATION, true);
+        requestConfig.setAuthenticationEnabled(true);
 
         String username = authenticator.getUsername();
         String password = authenticator.getPassword();
@@ -310,35 +262,35 @@ final class RequestImpl implements Request {
 
         // TODO : Set preemptive authentication, but its not recommended in HC 4
 
+        CredentialsProvider credsProvider = clientContext.getCredentialsProvider();
+        if (credsProvider == null) {
+            credsProvider = new BasicCredentialsProvider();
+            clientContext.setCredentialsProvider(credsProvider);
+        }
         if (host != null) {
             if (domain != null) {
                 /* Credentials for NTLM Authentication */
-                httpClient.getAuthSchemes().register("ntlm",new NTLMSchemeFactory());
                 creds = new NTCredentials(username, password, host, domain);
             } else {
                 /* Credentials for Digest and Basic Authentication */
                 creds = new UsernamePasswordCredentials(username, password);
             }
-            httpClient.getCredentialsProvider().
-                    setCredentials(new AuthScope(host, port, realm), creds);
+            credsProvider.setCredentials(new AuthScope(host, port, realm), creds);
         } else {
             if (domain != null) {
                 /*
                  * Credentials for NTLM Authentication when host is
                  * ANY_HOST
                  */
-                httpClient.getAuthSchemes().register("ntlm",new NTLMSchemeFactory());
                 creds = new NTCredentials(username, password, AuthScope.ANY_HOST, domain);
-                httpClient.getCredentialsProvider().
-                        setCredentials(new AuthScope(AuthScope.ANY_HOST, port, realm),
-                                       creds);
+                credsProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, port, realm), creds);
             } else {
                 /* Credentials only for Digest and Basic Authentication */
                 creds = new UsernamePasswordCredentials(username, password);
-                httpClient.getCredentialsProvider().
-                        setCredentials(new AuthScope(AuthScope.ANY), creds);
+                credsProvider.setCredentials(new AuthScope(AuthScope.ANY), creds);
             }
         }
+        
         /* Customizing the priority Order */
         List schemes = authenticator.getAuthSchemes();
         if (schemes != null && schemes.size() > 0) {
@@ -352,7 +304,7 @@ final class RequestImpl implements Request {
                 authPrefs.add(authenticator.getAuthPolicyPref(scheme));
 
             }
-            httpClient.getParams().setParameter(AuthPNames.TARGET_AUTH_PREF, authPrefs);
+            requestConfig.setTargetPreferredAuthSchemes(authPrefs);
         }
     }
 }

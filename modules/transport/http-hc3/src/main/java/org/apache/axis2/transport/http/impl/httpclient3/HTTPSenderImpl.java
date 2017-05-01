@@ -19,33 +19,18 @@
 
 package org.apache.axis2.transport.http.impl.httpclient3;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.zip.GZIPInputStream;
 
 import org.apache.axis2.AxisFault;
-import org.apache.axis2.Constants;
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.context.MessageContext;
-import org.apache.axis2.context.OperationContext;
-import org.apache.axis2.i18n.Messages;
 import org.apache.axis2.transport.http.AxisRequestEntity;
-import org.apache.axis2.transport.http.CommonsTransportHeaders;
 import org.apache.axis2.transport.http.HTTPConstants;
 import org.apache.axis2.transport.http.HTTPSender;
 import org.apache.axis2.transport.http.Request;
-import org.apache.axis2.wsdl.WSDLConstants;
-import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpMethod;
-import org.apache.commons.httpclient.HttpMethodBase;
-import org.apache.commons.httpclient.HeaderElement;
 import org.apache.commons.httpclient.HttpConnectionManager;
 import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
-import org.apache.commons.httpclient.NameValuePair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -53,232 +38,13 @@ public class HTTPSenderImpl extends HTTPSender {
 
     private static final Log log = LogFactory.getLog(HTTPSenderImpl.class);
 
-    boolean isChunked() {
-        return chunked;
-    }
-
-    String getHttpVersion() {
-        return httpVersion;
-    }
-
     @Override
     protected Request createRequest(MessageContext msgContext, String methodName, URL url,
             AxisRequestEntity requestEntity) throws AxisFault {
-        return new RequestImpl(this, msgContext, methodName, url, requestEntity);
+        return new RequestImpl(getHttpClient(msgContext), msgContext, methodName, url, requestEntity);
     }
 
-    /**
-     * Collect the HTTP header information and set them in the message context
-     * 
-     * @param method
-     *            HttpMethodBase from which to get information
-     * @param msgContext
-     *            the MessageContext in which to place the information... OR
-     *            NOT!
-     * @throws AxisFault
-     *             if problems occur
-     */
-    protected void obtainHTTPHeaderInformation(Request request, HttpMethod method, MessageContext msgContext)
-            throws AxisFault {
-        // Set RESPONSE properties onto the REQUEST message context. They will
-        // need to be copied off the request context onto
-        // the response context elsewhere, for example in the
-        // OutInOperationClient.
-        Map transportHeaders = new CommonsTransportHeaders(request.getResponseHeaders());
-        msgContext.setProperty(MessageContext.TRANSPORT_HEADERS, transportHeaders);
-        msgContext.setProperty(HTTPConstants.MC_HTTP_STATUS_CODE,
-                new Integer(request.getStatusCode()));
-        Header header = method.getResponseHeader(HTTPConstants.HEADER_CONTENT_TYPE);
-
-        if (header != null) {
-            HeaderElement[] headers = header.getElements();
-            MessageContext inMessageContext = msgContext.getOperationContext().getMessageContext(
-                    WSDLConstants.MESSAGE_LABEL_IN_VALUE);
-
-            Object contentType = header.getValue();
-            Object charSetEnc = null;
-
-            for (int i = 0; i < headers.length; i++) {
-                NameValuePair charsetEnc = headers[i]
-                        .getParameterByName(HTTPConstants.CHAR_SET_ENCODING);
-                if (charsetEnc != null) {
-                    charSetEnc = charsetEnc.getValue();
-                }
-            }
-
-            if (inMessageContext != null) {
-                inMessageContext.setProperty(Constants.Configuration.CONTENT_TYPE, contentType);
-                inMessageContext.setProperty(Constants.Configuration.CHARACTER_SET_ENCODING,
-                        charSetEnc);
-            } else {
-
-                // Transport details will be stored in a HashMap so that anybody
-                // interested can
-                // retrieve them
-                HashMap transportInfoMap = new HashMap();
-                transportInfoMap.put(Constants.Configuration.CONTENT_TYPE, contentType);
-                transportInfoMap.put(Constants.Configuration.CHARACTER_SET_ENCODING, charSetEnc);
-
-                // the HashMap is stored in the outgoing message.
-                msgContext
-                        .setProperty(Constants.Configuration.TRANSPORT_INFO_MAP, transportInfoMap);
-            }
-        }
-
-        String sessionCookie = null;
-        // Process old style headers first
-        Header[] cookieHeaders = method.getResponseHeaders(HTTPConstants.HEADER_SET_COOKIE);
-        String customCoookiId = (String) msgContext.getProperty(Constants.CUSTOM_COOKIE_ID);
-        for (int i = 0; i < cookieHeaders.length; i++) {
-            HeaderElement[] elements = cookieHeaders[i].getElements();
-            for (int e = 0; e < elements.length; e++) {
-                HeaderElement element = elements[e];
-                if (Constants.SESSION_COOKIE.equalsIgnoreCase(element.getName())
-                        || Constants.SESSION_COOKIE_JSESSIONID.equalsIgnoreCase(element.getName())) {
-                    sessionCookie = processCookieHeader(element);
-                }
-                if (customCoookiId != null && customCoookiId.equalsIgnoreCase(element.getName())) {
-                    sessionCookie = processCookieHeader(element);
-                }
-            }
-        }
-        // Overwrite old style cookies with new style ones if present
-        cookieHeaders = method.getResponseHeaders(HTTPConstants.HEADER_SET_COOKIE2);
-        for (int i = 0; i < cookieHeaders.length; i++) {
-            HeaderElement[] elements = cookieHeaders[i].getElements();
-            for (int e = 0; e < elements.length; e++) {
-                HeaderElement element = elements[e];
-                if (Constants.SESSION_COOKIE.equalsIgnoreCase(element.getName())
-                        || Constants.SESSION_COOKIE_JSESSIONID.equalsIgnoreCase(element.getName())) {
-                    sessionCookie = processCookieHeader(element);
-                }
-                if (customCoookiId != null && customCoookiId.equalsIgnoreCase(element.getName())) {
-                    sessionCookie = processCookieHeader(element);
-                }
-            }
-        }
-
-        if (sessionCookie != null) {
-            msgContext.getServiceContext().setProperty(HTTPConstants.COOKIE_STRING, sessionCookie);
-        }
-    }
-
-    private String processCookieHeader(HeaderElement element) {
-        String cookie = element.getName() + "=" + element.getValue();
-        NameValuePair[] parameters = element.getParameters();
-        for (int j = 0; parameters != null && j < parameters.length; j++) {
-            NameValuePair parameter = parameters[j];
-            cookie = cookie + "; " + parameter.getName() + "=" + parameter.getValue();
-        }
-        return cookie;
-    }
-
-    protected void processResponse(Request request, HttpMethodBase httpMethod, MessageContext msgContext)
-            throws IOException {
-        obtainHTTPHeaderInformation(request, httpMethod, msgContext);
-
-        InputStream in = httpMethod.getResponseBodyAsStream();
-        if (in == null) {
-            throw new AxisFault(Messages.getMessage("canNotBeNull", "InputStream"));
-        }
-        Header contentEncoding = httpMethod
-                .getResponseHeader(HTTPConstants.HEADER_CONTENT_ENCODING);
-        if (contentEncoding != null) {
-            if (contentEncoding.getValue().equalsIgnoreCase(HTTPConstants.COMPRESSION_GZIP)) {
-                in = new GZIPInputStream(in);
-                // If the content-encoding is identity we can basically ignore
-                // it.
-            } else if (!"identity".equalsIgnoreCase(contentEncoding.getValue())) {
-                throw new AxisFault("HTTP :" + "unsupported content-encoding of '"
-                        + contentEncoding.getValue() + "' found");
-            }
-        }
-
-        OperationContext opContext = msgContext.getOperationContext();
-        if (opContext != null) {
-            opContext.setProperty(MessageContext.TRANSPORT_IN, in);
-        }
-    }
-
-    /**
-     * This is used to get the dynamically set time out values from the message
-     * context. If the values are not available or invalid then the default
-     * values or the values set by the configuration will be used
-     * 
-     * @param msgContext
-     *            the active MessageContext
-     * @param httpClient
-     */
-    protected void initializeTimeouts(MessageContext msgContext, HttpClient httpClient) {
-        // If the SO_TIMEOUT of CONNECTION_TIMEOUT is set by dynamically the
-        // override the static config
-        Integer tempSoTimeoutProperty = (Integer) msgContext.getProperty(HTTPConstants.SO_TIMEOUT);
-        Integer tempConnTimeoutProperty = (Integer) msgContext
-                .getProperty(HTTPConstants.CONNECTION_TIMEOUT);
-        long timeout = msgContext.getOptions().getTimeOutInMilliSeconds();
-
-        if (tempConnTimeoutProperty != null) {
-            int connectionTimeout = tempConnTimeoutProperty.intValue();
-            // timeout for initial connection
-            httpClient.getHttpConnectionManager().getParams()
-                    .setConnectionTimeout(connectionTimeout);
-        } else {
-            // set timeout in client
-            if (timeout > 0) {
-                httpClient.getHttpConnectionManager().getParams()
-                        .setConnectionTimeout((int) timeout);
-            }
-        }
-
-        if (tempSoTimeoutProperty != null) {
-            int soTimeout = tempSoTimeoutProperty.intValue();
-            // SO_TIMEOUT -- timeout for blocking reads
-            httpClient.getHttpConnectionManager().getParams().setSoTimeout(soTimeout);
-            httpClient.getParams().setSoTimeout(soTimeout);
-        } else {
-            // set timeout in client
-            if (timeout > 0) {
-                httpClient.getHttpConnectionManager().getParams().setSoTimeout((int) timeout);
-                httpClient.getParams().setSoTimeout((int) timeout);
-            }
-        }
-    }
-
-    /**
-     * This is used to get the dynamically set time out values from the message
-     * context. If the values are not available or invalid then the default
-     * values or the values set by the configuration will be used
-     * 
-     * @param msgContext
-     *            the active MessageContext
-     * @param httpMethod
-     *            method
-     */
-    protected void setTimeouts(MessageContext msgContext, HttpMethod httpMethod) {
-        // If the SO_TIMEOUT of CONNECTION_TIMEOUT is set by dynamically the
-        // override the static config
-        Integer tempSoTimeoutProperty = (Integer) msgContext.getProperty(HTTPConstants.SO_TIMEOUT);
-        Integer tempConnTimeoutProperty = (Integer) msgContext
-                .getProperty(HTTPConstants.CONNECTION_TIMEOUT);
-        long timeout = msgContext.getOptions().getTimeOutInMilliSeconds();
-
-        if (tempConnTimeoutProperty != null) {
-            // timeout for initial connection
-            httpMethod.getParams().setParameter("http.connection.timeout", tempConnTimeoutProperty);
-        }
-
-        if (tempSoTimeoutProperty != null) {
-            // SO_TIMEOUT -- timeout for blocking reads
-            httpMethod.getParams().setSoTimeout(tempSoTimeoutProperty);
-        } else {
-            // set timeout in client
-            if (timeout > 0) {
-                httpMethod.getParams().setSoTimeout((int) timeout);
-            }
-        }
-    }
-
-    protected HttpClient getHttpClient(MessageContext msgContext) {
+    private HttpClient getHttpClient(MessageContext msgContext) {
         ConfigurationContext configContext = msgContext.getConfigurationContext();
 
         HttpClient httpClient = (HttpClient) msgContext
@@ -332,9 +98,6 @@ public class HTTPSenderImpl extends HTTPSender {
             // Set the default timeout in case we have a connection pool
             // starvation to 30sec
             httpClient.getParams().setConnectionManagerTimeout(30000);
-
-            // Get the timeout values set in the runtime
-            initializeTimeouts(msgContext, httpClient);
 
             return httpClient;
         }

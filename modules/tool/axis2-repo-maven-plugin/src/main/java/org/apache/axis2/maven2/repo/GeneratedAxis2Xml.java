@@ -16,15 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.axis2.maven2.repo;
 
-package org.apache.axis2.json;
-
-public interface JSONTestConstants {
-
-    public static final String CONTENT_TYPE_BADGERFISH = "application/json+badgerfish";
+public class GeneratedAxis2Xml {
+    private MessageHandler[] messageBuilders;
+    private MessageHandler[] messageFormatters;
     
-    public static final String CONTENT_TYPE_MAPPED = "application/json";
+    public MessageHandler[] getMessageBuilders() {
+        return messageBuilders;
+    }
     
+    public void setMessageBuilders(MessageHandler[] messageBuilders) {
+        this.messageBuilders = messageBuilders;
+    }
     
+    public MessageHandler[] getMessageFormatters() {
+        return messageFormatters;
+    }
     
+    public void setMessageFormatters(MessageHandler[] messageFormatters) {
+        this.messageFormatters = messageFormatters;
+    }
 }

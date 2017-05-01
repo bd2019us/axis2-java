@@ -19,27 +19,27 @@
 package org.apache.axis2.transport.http.impl.httpclient3;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.axiom.mime.Header;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.MessageContext;
-import org.apache.axis2.context.OperationContext;
-import org.apache.axis2.i18n.Messages;
 import org.apache.axis2.transport.http.AxisRequestEntity;
 import org.apache.axis2.transport.http.HTTPAuthenticator;
 import org.apache.axis2.transport.http.HTTPConstants;
 import org.apache.axis2.transport.http.HTTPTransportConstants;
 import org.apache.axis2.transport.http.Request;
-import org.apache.axis2.wsdl.WSDLConstants;
 import org.apache.commons.httpclient.Credentials;
+import org.apache.commons.httpclient.HeaderElement;
 import org.apache.commons.httpclient.HostConfiguration;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethodBase;
 import org.apache.commons.httpclient.HttpState;
-import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.HttpVersion;
 import org.apache.commons.httpclient.NTCredentials;
 import org.apache.commons.httpclient.UsernamePasswordCredentials;
@@ -52,21 +52,21 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 final class RequestImpl implements Request {
+    private static final String[] COOKIE_HEADER_NAMES = { HTTPConstants.HEADER_SET_COOKIE, HTTPConstants.HEADER_SET_COOKIE2 };
+
     private static final Log log = LogFactory.getLog(RequestImpl.class);
 
-    protected final HTTPSenderImpl sender;
-    protected final MessageContext msgContext;
-    protected final URL url;
-    protected final HttpMethodBase method;
-    protected final HttpClient httpClient;
+    private final HttpClient httpClient;
+    private final MessageContext msgContext;
+    private final URL url;
+    private final HttpMethodBase method;
     private final HostConfiguration config;
 
-    RequestImpl(HTTPSenderImpl sender, MessageContext msgContext, final String methodName, URL url,
+    RequestImpl(HttpClient httpClient, MessageContext msgContext, final String methodName, URL url,
             AxisRequestEntity requestEntity) throws AxisFault {
-        this.sender = sender;
+        this.httpClient = httpClient;
         this.msgContext = msgContext;
         this.url = url;
-        httpClient = sender.getHttpClient(msgContext);
         if (requestEntity == null) {
             method = new HttpMethodBase() {
                 @Override
@@ -86,9 +86,7 @@ final class RequestImpl implements Request {
                 }
             };
             entityEnclosingMethod.setRequestEntity(new AxisRequestEntityImpl(requestEntity));
-            if (!sender.getHttpVersion().equals(HTTPConstants.HEADER_PROTOCOL_10) && sender.isChunked()) {
-                entityEnclosingMethod.setContentChunked(true);
-            }
+            entityEnclosingMethod.setContentChunked(requestEntity.isChunked());
             method = entityEnclosingMethod;
         }
         method.setPath(url.getPath());
@@ -130,6 +128,16 @@ final class RequestImpl implements Request {
     }
 
     @Override
+    public void setConnectionTimeout(int timeout) {
+        method.getParams().setParameter("http.connection.timeout", timeout);
+    }
+
+    @Override
+    public void setSocketTimeout(int timeout) {
+        method.getParams().setSoTimeout(timeout);
+    }
+
+    @Override
     public int getStatusCode() {
         return method.getStatusCode();
     }
@@ -140,24 +148,39 @@ final class RequestImpl implements Request {
     }
 
     @Override
+    public String getResponseHeader(String name) {
+        org.apache.commons.httpclient.Header header = method.getResponseHeader(name);
+        return header == null ? null : header.getValue();
+    }
+
+    @Override
     public Header[] getResponseHeaders() {
         return convertHeaders(method.getResponseHeaders());
     }
 
     @Override
-    public void execute() throws AxisFault {
-        try {
-            executeMethod();
-            handleResponse();
-        } catch (IOException e) {
-            log.info("Unable to send to url[" + url + "]", e);
-            throw AxisFault.makeFault(e);
-        } finally {
-            cleanup();
+    public Map<String,String> getCookies() {
+        Map<String,String> cookies = null;
+        for (String name : COOKIE_HEADER_NAMES) {
+            for (org.apache.commons.httpclient.Header header : method.getResponseHeaders(name)) {
+                for (HeaderElement element : header.getElements()) {
+                    if (cookies == null) {
+                        cookies = new HashMap<String,String>();
+                    }
+                    cookies.put(element.getName(), element.getValue());
+                }
+            }
         }
+        return cookies;
     }
 
-    private void executeMethod() throws IOException {
+    @Override
+    public InputStream getResponseContent() throws IOException {
+        return method.getResponseBodyAsStream();
+    }
+
+    @Override
+    public void execute() throws IOException {
         populateHostConfiguration();
 
         // add compression headers if needed
@@ -178,66 +201,12 @@ final class RequestImpl implements Request {
         }
         HttpState httpState = (HttpState) msgContext.getProperty(HTTPConstants.CACHED_HTTP_STATE);
 
-        sender.setTimeouts(msgContext, method);
-
         httpClient.executeMethod(config, method, httpState);
     }
 
-    private void handleResponse() throws IOException {
-        int statusCode = getStatusCode();
-        log.trace("Handling response - " + statusCode);
-        if (statusCode == HttpStatus.SC_ACCEPTED) {
-            /* When an HTTP 202 Accepted code has been received, this will be the case of an execution 
-             * of an in-only operation. In such a scenario, the HTTP response headers should be returned,
-             * i.e. session cookies. */
-            sender.obtainHTTPHeaderInformation(this, method, msgContext);
-            // Since we don't expect any content with a 202 response, we must release the connection
-            method.releaseConnection();            
-        } else if (statusCode >= 200 && statusCode < 300) {
-            // Save the HttpMethod so that we can release the connection when cleaning up
-            msgContext.setProperty(HTTPConstants.HTTP_METHOD, method);
-            sender.processResponse(this, method, msgContext);
-        } else if (statusCode == HttpStatus.SC_INTERNAL_SERVER_ERROR
-                || statusCode == HttpStatus.SC_BAD_REQUEST) {
-            // Save the HttpMethod so that we can release the connection when
-            // cleaning up
-            msgContext.setProperty(HTTPConstants.HTTP_METHOD, method);
-            org.apache.commons.httpclient.Header contenttypeHeader = method.getResponseHeader(HTTPConstants.HEADER_CONTENT_TYPE);
-            String value = null;
-            if (contenttypeHeader != null) {
-                value = contenttypeHeader.getValue();
-            }
-            OperationContext opContext = msgContext.getOperationContext();
-            if (opContext != null) {
-                MessageContext inMessageContext = opContext
-                        .getMessageContext(WSDLConstants.MESSAGE_LABEL_IN_VALUE);
-                if (inMessageContext != null) {
-                    inMessageContext.setProcessingFault(true);
-                }
-            }
-            if (value != null) {
-
-                sender.processResponse(this, method, msgContext);
-            }
-
-            if (org.apache.axis2.util.Utils.isClientThreadNonBlockingPropertySet(msgContext)) {
-                throw new AxisFault(Messages.getMessage("transportError",
-                        String.valueOf(statusCode), getStatusText()));
-            }
-        } else {
-            // Since we don't process the response, we must release the
-            // connection immediately
-            method.releaseConnection();
-            throw new AxisFault(Messages.getMessage("transportError", String.valueOf(statusCode),
-                    getStatusText()));
-        }
-    }
-
-    private void cleanup() {
-        if (msgContext.isPropertyTrue(HTTPConstants.AUTO_RELEASE_CONNECTION)) {
-            log.trace("AutoReleasing " + method);
-            method.releaseConnection();
-        }
+    @Override
+    public void releaseConnection() {
+        method.releaseConnection();
     }
 
     /**
@@ -248,7 +217,7 @@ final class RequestImpl implements Request {
      * @throws AxisFault
      *             if problems occur
      */
-    protected void populateHostConfiguration() throws AxisFault {
+    private void populateHostConfiguration() throws AxisFault {
 
         int port = url.getPort();
 

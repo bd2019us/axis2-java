@@ -18,8 +18,11 @@
  */
 package org.apache.axis2.transport.http;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
+
 import org.apache.axiom.mime.Header;
-import org.apache.axis2.AxisFault;
 
 /**
  * Interface to prepare and execute an HTTP request.
@@ -30,8 +33,14 @@ public interface Request {
     void addHeader(String name, String value);
     Header[] getRequestHeaders();
     void enableAuthentication(HTTPAuthenticator authenticator);
-    void execute() throws AxisFault;
+    void setConnectionTimeout(int timeout);
+    void setSocketTimeout(int timeout);
+    void execute() throws IOException;
     int getStatusCode();
     String getStatusText();
+    String getResponseHeader(String name);
     Header[] getResponseHeaders();
+    Map<String,String> getCookies();
+    InputStream getResponseContent() throws IOException;
+    void releaseConnection();
 }
