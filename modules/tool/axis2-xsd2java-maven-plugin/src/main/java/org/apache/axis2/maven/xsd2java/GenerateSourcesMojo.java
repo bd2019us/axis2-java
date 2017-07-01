@@ -16,31 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.axis2.maven.xsd2java;
 
-package org.apache.axis2.maven2.wsdl2code;
+import java.io.File;
 
-/** Data class for specifying URI->Package mappings. */
-public class NamespaceURIMapping {
-    private String uri, packageName;
+import org.apache.maven.project.MavenProject;
 
-    /** Returns the package name, to which the URI shall be mapped. */
-    public String getPackageName() {
-        return packageName;
-    }
-
-    /** Sets the package name, to which the URI shall be mapped. */
-    public void setPackageName(String pPackageName) {
-        packageName = pPackageName;
-    }
-
-    /** Returns the URI, which shall be mapped. */
-    public String getUri() {
-        return uri;
-    }
-
-    /** Sets the URI, which shall be mapped.
+/**
+ * Generates Java classes from the specified schema files.
+ * 
+ * @goal generate-sources
+ * @phase generate-sources
+ */
+public class GenerateSourcesMojo extends AbstractXSD2JavaMojo {
+    /**
+     * The output directory for the generated Java code.
+     *
+     * @parameter default-value="${project.build.directory}/generated-sources/xsd2java"
      */
-    public void setUri(String pUri) {
-        uri = pUri;
-	}
+    private File outputDirectory;
+    
+    @Override
+    protected File getOutputDirectory() {
+        return outputDirectory;
+    }
+
+    @Override
+    protected void addSourceRoot(MavenProject project) {
+        project.addCompileSourceRoot(outputDirectory.getPath());
+    }
 }

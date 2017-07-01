@@ -23,9 +23,8 @@ import org.apache.axiom.om.OMAttribute;
 import org.apache.axiom.om.OMElement;
 import org.apache.axiom.om.OMNamespace;
 import org.apache.axiom.om.OMNode;
-import org.apache.axiom.soap.SOAP11Version;
-import org.apache.axiom.soap.SOAP12Version;
 import org.apache.axiom.soap.SOAPFactory;
+import org.apache.axiom.soap.SOAPVersion;
 import org.w3c.dom.Attr;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Element;
@@ -272,7 +271,7 @@ public class SOAPElementImpl<T extends OMElement> extends NodeImpl<Element,T> im
       */
     public Iterator getChildElements(Name name) {
         QName qName = new QName(name.getURI(), name.getLocalName());
-        Iterator childIter = omTarget.getChildrenWithName(qName);
+        Iterator<OMElement> childIter = omTarget.getChildrenWithName(qName);
         Collection childElements = new ArrayList();
         while (childIter.hasNext()) {
             childElements.add(toSAAJNode((org.w3c.dom.Node)childIter.next()));
@@ -421,7 +420,7 @@ public class SOAPElementImpl<T extends OMElement> extends NodeImpl<Element,T> im
     }
 
     public Iterator getChildElements(QName qname) {
-        Iterator childIter = omTarget.getChildrenWithName(qname);
+        Iterator<OMElement> childIter = omTarget.getChildrenWithName(qname);
         Collection childElements = new ArrayList();
         while (childIter.hasNext()) {
             childElements.add(toSAAJNode((org.w3c.dom.Node)childIter.next()));
@@ -505,7 +504,7 @@ public class SOAPElementImpl<T extends OMElement> extends NodeImpl<Element,T> im
      *          the encodingStyle is invalid for this SOAPElement.
      */
     public void setEncodingStyle(String encodingStyle) throws SOAPException {
-        if (((SOAPFactory)this.omTarget.getOMFactory()).getSOAPVersion() == SOAP11Version.getSingleton()) {
+        if (((SOAPFactory)this.omTarget.getOMFactory()).getSOAPVersion() == SOAPVersion.SOAP11) {
             try {
                 URI uri = new URI(encodingStyle);
                 if (!(this instanceof SOAPEnvelope)) {
@@ -519,7 +518,7 @@ public class SOAPElementImpl<T extends OMElement> extends NodeImpl<Element,T> im
                 throw new IllegalArgumentException("Invalid Encoding style : "
                         + encodingStyle + ":" + e);
             }
-        } else if (((SOAPFactory)this.omTarget.getOMFactory()).getSOAPVersion() == SOAP12Version.getSingleton()) {
+        } else if (((SOAPFactory)this.omTarget.getOMFactory()).getSOAPVersion() == SOAPVersion.SOAP12) {
             if (this instanceof SOAPHeader || this instanceof SOAPBody ||
                     this instanceof SOAPFault ||
                     this instanceof SOAPFaultElement || this instanceof SOAPEnvelope ||

@@ -19,19 +19,19 @@
 
 package org.apache.axis2.jaxws.message.databinding.impl;
 
+import org.apache.axiom.blob.Blobs;
+import org.apache.axiom.blob.MemoryBlob;
 import org.apache.axiom.om.OMDataSource;
 import org.apache.axiom.om.OMElement;
 import org.apache.axiom.om.OMSourcedElement;
 import org.apache.axiom.om.util.StAXUtils;
 import org.apache.axiom.soap.SOAP11Constants;
 import org.apache.axis2.datasource.SourceDataSource;
-import org.apache.axis2.java.security.AccessController;
 import org.apache.axis2.jaxws.ExceptionFactory;
 import org.apache.axis2.jaxws.i18n.Messages;
 import org.apache.axis2.jaxws.message.databinding.SourceBlock;
 import org.apache.axis2.jaxws.message.factory.BlockFactory;
 import org.apache.axis2.jaxws.message.impl.BlockImpl;
-import org.apache.axis2.jaxws.message.util.Reader2Writer;
 import org.apache.axis2.jaxws.utility.ConvertUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -45,13 +45,12 @@ import javax.xml.stream.XMLStreamWriter;
 import javax.xml.transform.Source;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.sax.SAXSource;
+import javax.xml.transform.stax.StAXSource;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.ws.WebServiceException;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.StringReader;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
+import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * SourceBlock
@@ -71,26 +70,6 @@ import java.security.PrivilegedExceptionAction;
 public class SourceBlockImpl extends BlockImpl<Source,Void> implements SourceBlock {
 
     private static final Log log = LogFactory.getLog(SourceBlockImpl.class);
-    private static Class<?> staxSource = null;
-
-    static {
-        try {
-            // Dynamically discover if StAXSource is available
-            staxSource = forName("javax.xml.transform.stax.StAXSource");
-        } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("StAXSource is not present in the JDK.  " +
-                                "This is acceptable.  Processing continues");
-            }
-        }
-        try {
-            // Woodstox does not work with StAXSource
-            if(XMLInputFactory.newInstance().getClass().getName().indexOf("wstx")!=-1){
-                staxSource = null;
-            }
-        } catch (Exception e){
-        }
-    }
 
     /**
      * Constructor called from factory
@@ -107,7 +86,7 @@ public class SourceBlockImpl extends BlockImpl<Source,Void> implements SourceBlo
         if (busObject instanceof DOMSource ||
                 busObject instanceof SAXSource ||
                 busObject instanceof StreamSource ||
-                (busObject.getClass().equals(staxSource)) ||
+                busObject instanceof StAXSource ||
                 busObject instanceof JAXBSource) {
             // Okay, these are supported Source objects
             if (log.isDebugEnabled()) {
@@ -131,32 +110,6 @@ public class SourceBlockImpl extends BlockImpl<Source,Void> implements SourceBlo
         super(omElement, null, qName, factory);
     }
 
-    private Source _getBOFromReader(XMLStreamReader reader, Void busContext)
-            throws XMLStreamException {
-
-        // Best solution is to use a StAXSource
-        // However StAXSource is not widely accepted.  
-        // For now, a StreamSource is always returned
-        /*
-        if (staxSource != null) {
-            try {
-                // TODO Constructor should be statically cached for performance
-                Constructor c =
-                        staxSource.getDeclaredConstructor(new Class[] { XMLStreamReader.class });
-                return c.newInstance(new Object[] { reader });
-            } catch (Exception e) {
-            }
-        }
-        */
-
-        // TODO StreamSource is not performant...work is needed here to make this faster
-        Reader2Writer r2w = new Reader2Writer(reader);
-        String text = r2w.getAsString();
-        StringReader sr = new StringReader(text);
-        return new StreamSource(sr);
-
-    }
-    
     @Override
     protected Source _getBOFromOM(OMElement omElement, Void busContext)
         throws XMLStreamException, WebServiceException {
@@ -179,16 +132,19 @@ public class SourceBlockImpl extends BlockImpl<Source,Void> implements SourceBlo
         }
         
         // Transform reader into business object
-        if (!hasFault) {
-            busObject = _getBOFromReader(omElement.getXMLStreamReader(false), busContext);
+        MemoryBlob blob = Blobs.createMemoryBlob();
+        OutputStream out = blob.getOutputStream();
+        try {
+            if (!hasFault) {
+                omElement.serializeAndConsume(out);
+            } else {
+                omElement.serialize(out);
+            }
+            out.close();
+        } catch (IOException ex) {
+            throw new XMLStreamException(ex);
         }
-        else {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            omElement.serialize(baos);
-            
-            ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-            busObject = new StreamSource(bais);
-        }
+        busObject = new StreamSource(blob.getInputStream());
         return busObject;
     }
 
@@ -294,32 +250,6 @@ public class SourceBlockImpl extends BlockImpl<Source,Void> implements SourceBlo
         return false;  // The source could be a text or element etc.
     }
 
-    /**
-     * Return the class for this name
-     * @return Class
-     */
-    private static Class<?> forName(final String className) throws ClassNotFoundException {
-        // NOTE: This method must remain private because it uses AccessController
-        Class<?> cl = null;
-        try {
-            cl = AccessController.doPrivileged(
-                    new PrivilegedExceptionAction<Class<?>>() {
-                        @Override
-                        public Class<?> run() throws ClassNotFoundException {
-                            return Class.forName(className);
-                        }
-                    }
-            );
-        } catch (PrivilegedActionException e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Exception thrown from AccessController: " + e);
-            }
-            throw (ClassNotFoundException)e.getException();
-        }
-
-        return cl;
-    }
-    
     @Override
     public void close() {
         return; // Nothing to close

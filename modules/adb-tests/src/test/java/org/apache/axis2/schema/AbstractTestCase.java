@@ -25,8 +25,6 @@ import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -44,6 +42,7 @@ import java.util.Set;
 
 import javax.activation.DataHandler;
 import javax.xml.namespace.QName;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.XMLStreamWriter;
 
@@ -53,9 +52,11 @@ import org.apache.axiom.om.OMAbstractFactory;
 import org.apache.axiom.om.OMElement;
 import org.apache.axiom.om.OMOutputFormat;
 import org.apache.axiom.om.OMXMLBuilderFactory;
+import org.apache.axiom.om.ds.AbstractPushOMDataSource;
 import org.apache.axiom.om.util.StAXUtils;
 import org.apache.axiom.soap.SOAPEnvelope;
 import org.apache.axiom.soap.SOAPModelBuilder;
+import org.apache.axiom.testutils.io.IOTestUtils;
 import org.apache.axis2.databinding.ADBBean;
 import org.apache.axis2.databinding.ADBException;
 import org.apache.axis2.databinding.types.HexBinary;
@@ -103,7 +104,7 @@ public abstract class AbstractTestCase extends TestCase {
      * @param expected
      * @param actual
      */
-    public static void assertBeanEquals(Object expected, Object actual) {
+    public static void assertBeanEquals(Object expected, Object actual) throws Exception {
         if (expected == null) {
             assertNull(actual);
             return;
@@ -127,7 +128,7 @@ public abstract class AbstractTestCase extends TestCase {
         }
     }
     
-    private static void assertPropertyValueEquals(String message, Object expected, Object actual) {
+    private static void assertPropertyValueEquals(String message, Object expected, Object actual) throws Exception {
         if (expected == null) {
             assertNull(message, actual);
         } else {
@@ -143,7 +144,9 @@ public abstract class AbstractTestCase extends TestCase {
             } else if (simpleJavaTypes.contains(type)) {
                 assertEquals("value for " + message, expected, actual);
             } else if (DataHandler.class.isAssignableFrom(type)) {
-                assertDataHandlerEquals((DataHandler)expected, (DataHandler)actual);
+                IOTestUtils.compareStreams(
+                        ((DataHandler)expected).getInputStream(), "expected",
+                        ((DataHandler)actual).getInputStream(), "actual");
             } else if (OMElement.class.isAssignableFrom(type)) {
                 assertTrue(isOMElementsEqual((OMElement)expected, (OMElement)actual));
             } else if (isADBBean(type)) {
@@ -193,20 +196,6 @@ public abstract class AbstractTestCase extends TestCase {
             }
         }
         return count;
-    }
-    
-    private static void assertDataHandlerEquals(DataHandler expected, DataHandler actual) {
-        try {
-            InputStream in1 = expected.getInputStream();
-            InputStream in2 = actual.getInputStream();
-            int b;
-            do {
-                b = in1.read();
-                assertEquals(b, in2.read());
-            } while (b != -1);
-        } catch (IOException ex) {
-            fail("Failed to read data handler");
-        }
     }
     
     public static Object toHelperModeBean(ADBBean bean) throws Exception {
@@ -337,14 +326,26 @@ public abstract class AbstractTestCase extends TestCase {
     // Approach 3: Serialize the bean as the child of an element that declares a default namespace.
     // If ADB behaves correctly, this should not have any impact. A failure here may be an indication
     // of an incorrect usage of XMLStreamWriter#writeStartElement(String).
-    private static void testSerializeDeserializeWrapped(Object bean, Object expectedResult) throws Exception {
+    private static void testSerializeDeserializeWrapped(final Object bean, Object expectedResult) throws Exception {
         StringWriter sw = new StringWriter();
-        XMLStreamWriter writer = StAXUtils.createXMLStreamWriter(sw);
-        writer.writeStartElement("", "root", "urn:test");
-        writer.writeDefaultNamespace("urn:test");
-        ADBBeanUtil.serialize(bean, writer);
-        writer.writeEndElement();
-        writer.flush();
+        OMAbstractFactory.getOMFactory().createOMElement(new AbstractPushOMDataSource() {
+            @Override
+            public boolean isDestructiveWrite() {
+                return false;
+            }
+            
+            @Override
+            public void serialize(XMLStreamWriter writer) throws XMLStreamException {
+                writer.writeStartElement("", "root", "urn:test");
+                writer.writeDefaultNamespace("urn:test");
+                try {
+                    ADBBeanUtil.serialize(bean, writer);
+                } catch (Exception ex) {
+                    throw new XMLStreamException(ex);
+                }
+                writer.writeEndElement();
+            }
+        }).serialize(sw);
         OMElement omElement3 = OMXMLBuilderFactory.createOMBuilder(new StringReader(sw.toString())).getDocumentElement();
         assertBeanEquals(expectedResult, ADBBeanUtil.parse(bean.getClass(), omElement3.getFirstElement().getXMLStreamReader()));
     }

@@ -60,11 +60,9 @@ public class OSGiTest {
                 url("link:classpath:META-INF/links/org.osgi.compendium.link"),
                 url("link:classpath:org.apache.felix.configadmin.link"),
                 url("link:classpath:org.apache.servicemix.bundles.wsdl4j.link"),
-                url("link:classpath:org.apache.geronimo.specs.geronimo-jms_1.1_spec.link"), // TODO: why the heck is this required???
                 url("link:classpath:org.apache.geronimo.specs.geronimo-ws-metadata_2.0_spec.link"),
                 url("link:classpath:com.sun.mail.javax.mail.link"), // TODO: should no longer be necessary
                 url("link:classpath:org.apache.geronimo.specs.geronimo-servlet_2.5_spec.link"),
-                url("link:classpath:org.apache.geronimo.specs.geronimo-jaxrs_1.1_spec.link"), // TODO: shouldn't this be optional???
                 url("link:classpath:org.apache.james.apache-mime4j-core.link"),
                 url("link:classpath:org.apache.ws.commons.axiom.axiom-api.link"),
                 url("link:classpath:org.apache.ws.commons.axiom.axiom-impl.link"),
