@@ -1453,6 +1453,7 @@
                                             out.println """  permission java.net.SocketPermission "localhost", "connect,listen,accept,resolve";"""
                                             out.println """  permission java.security.SecurityPermission "*";"""
                                             out.println """  permission java.util.PropertyPermission "*", "read,write";"""
+                                            out.println """  permission java.lang.management.ManagementPermission "monitor";"""
                                             out.println """  permission javax.management.MBeanPermission "*", "*";"""
                                             out.println """  permission javax.management.MBeanServerPermission "*";"""
                                             out.println """  permission javax.management.MBeanTrustPermission "*";"""
