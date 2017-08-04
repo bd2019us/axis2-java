@@ -74,6 +74,11 @@
         </dependency>
         <dependency>
             <groupId>org.apache.axis2</groupId>
+            <artifactId>axis2-jibx-codegen</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-json</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -243,15 +248,6 @@
                     <artifactId>commons-lang</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        
-        <!-- Jalopy is used by the PrettyPrinter class in the kernel,
-             but it is invoked using reflection (and only if it is
-             found on the classpath). Therefore it is not automatically
-             added as a transitive dependency. -->
-        <dependency>
-            <groupId>jalopy</groupId>
-            <artifactId>jalopy</artifactId>
         </dependency>
         
         <!-- None of the Axis2 artifacts should have a dependency on log4j

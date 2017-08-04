@@ -49,6 +49,7 @@
         <module>modules/integration</module>
         <module>modules/java2wsdl</module>
         <module>modules/jibx</module>
+        <module>modules/jibx-codegen</module>
         <module>modules/json</module>
         <module>modules/kernel</module>
         <module>modules/mex</module>
@@ -523,14 +524,13 @@
         <httpcore.version>4.4.6</httpcore.version>
         <httpclient.version>4.5.3</httpclient.version>
         <intellij.version>5.0</intellij.version>
-        <jalopy.version>1.5rc3</jalopy.version>
         <jaxb.api.version>2.2.6</jaxb.api.version>
         <jaxbri.version>2.2.6</jaxbri.version>
         <jettison.version>1.3.8</jettison.version>
         <jibx.version>1.3.1</jibx.version>
         <log4j.version>1.2.15</log4j.version>
         <maven.archiver.version>3.0.2</maven.archiver.version>
-        <maven.version>3.5.0</maven.version>
+        <maven.version>3.3.9</maven.version>
         <maven.plugin.descriptor.version>2.0.7</maven.plugin.descriptor.version>
         <maven.archetype.plugin.version>2.2</maven.archetype.plugin.version>
         <plexus.classworlds.version>2.4</plexus.classworlds.version>
@@ -805,6 +805,11 @@
                 <artifactId>jcl-over-slf4j</artifactId>
                 <version>${slf4j.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>log4j-over-slf4j</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.sun.mail</groupId>
@@ -956,12 +961,6 @@
                 <version>${plexus.classworlds.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.apache.maven.plugin-testing</groupId>
-                <artifactId>maven-plugin-testing-harness</artifactId>
-                <scope>test</scope>
-                <version>3.3.0</version>
-            </dependency>
-            <dependency>
                 <groupId>log4j</groupId>
                 <artifactId>log4j</artifactId>
                 <version>${log4j.version}</version>
@@ -1078,11 +1077,6 @@
                 <version>${bsf.version}</version>
             </dependency>
             <dependency>
-                <groupId>jalopy</groupId>
-                <artifactId>jalopy</artifactId>
-                <version>${jalopy.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>commons-lang</groupId>
                 <artifactId>commons-lang</artifactId>
                 <version>${commons.lang.version}</version>
@@ -1091,6 +1085,13 @@
                 <groupId>org.apache.geronimo.specs</groupId>
                 <artifactId>geronimo-jta_1.1_spec</artifactId>
                 <version>${geronimo-spec.jta.version}</version>
+            </dependency>
+            <dependency>
+                <!-- Both google-java-format and Maven depend on Guava. We need to select
+                     a version that works for both. -->
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>19.0</version>
             </dependency>
 
             <dependency>
@@ -1244,7 +1245,7 @@
                 <plugin>
                     <groupId>com.github.veithen.alta</groupId>
                     <artifactId>alta-maven-plugin</artifactId>
-                    <version>0.5</version>
+                    <version>0.6</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
@@ -1274,17 +1275,17 @@
                     </configuration>
                 </plugin>
                 
-                <!-- Use 1.5.2 versions of the aar and mar plugins in order to avoid
+                <!-- Use released versions of the aar and mar plugins in order to avoid
                      the chicken and egg problem. -->
                 <plugin>
                     <groupId>org.apache.axis2</groupId>
                     <artifactId>axis2-aar-maven-plugin</artifactId>
-                    <version>1.5.2</version>
+                    <version>1.7.6</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.axis2</groupId>
                     <artifactId>axis2-mar-maven-plugin</artifactId>
-                    <version>1.5.2</version>
+                    <version>1.7.6</version>
                 </plugin>
                 
                 <!-- No chicken and egg problem here because the plugin doesn't expose
