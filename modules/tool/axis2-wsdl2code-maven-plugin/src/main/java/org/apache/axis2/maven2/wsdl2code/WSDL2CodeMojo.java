@@ -28,6 +28,7 @@ import org.apache.maven.project.MavenProject;
  * 
  * @goal wsdl2code
  * @phase generate-sources
+ * @threadSafe
  * @deprecated This goal is identical to axis2-wsdl2code:generate-sources; either switch to that
  *             goal or use the new axis2-wsdl2code:generate-test-sources goal if you need to
  *             generate code for use in unit tests only.
@@ -36,7 +37,7 @@ public class WSDL2CodeMojo extends GenerateSourcesMojo {
     /**
      * The output directory, where the generated sources are being created.
      *
-     * @parameter expression="${axis2.wsdl2code.target}" default-value="${project.build.directory}/generated-sources/axis2/wsdl2code"
+     * @parameter property="axis2.wsdl2code.target" default-value="${project.build.directory}/generated-sources/axis2/wsdl2code"
      */
     private File outputDirectory;
 

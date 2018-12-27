@@ -56,14 +56,8 @@
             <artifactId>xml-resolver</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.sun.xml.bind</groupId>
-            <artifactId>jaxb-impl</artifactId>
-            <exclusions>
-                <exclusion>
-                    <artifactId>jsr173</artifactId>
-                    <groupId>javax.xml</groupId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.glassfish.jaxb</groupId>
+            <artifactId>jaxb-runtime</artifactId>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -154,37 +148,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>com.github.veithen.alta</groupId>
-                <artifactId>alta-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>generate-properties</goal>
-                        </goals>
-                        <configuration>
-                            <artifacts>
-                                <artifact>
-                                    <groupId>org.apache.geronimo.specs</groupId>
-                                    <artifactId>geronimo-jaxws_2.2_spec</artifactId>
-                                 </artifact>
-                            </artifacts>
-                            <name>jaxws.bootclasspath</name>
-                            <value>%file%</value>
-                            <separator>${path.separator}</separator>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <inherited>true</inherited>
-                <configuration>
-                    <compilerArgument>
-                        -Xbootclasspath/p:${jaxws.bootclasspath}
-                    </compilerArgument>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.axis2</groupId>
                 <artifactId>axis2-repo-maven-plugin</artifactId>
                 <executions>
@@ -201,19 +164,18 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>jaxb2-maven-plugin</artifactId>
+                <groupId>com.github.veithen.maven</groupId>
+                <artifactId>xjc-maven-plugin</artifactId>
                 <executions>
                     <execution>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/ProxyDocLitWrapped.wsdl</testSource>
-                            </testSources>
-                            <packageName>org.test.proxy.doclitwrapped</packageName>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/ProxyDocLitWrapped.wsdl</file>
+                            </files>
                         </configuration>
                     </execution>
                 </executions>
@@ -248,9 +210,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <inherited>true</inherited>
                 <configuration>
-                    <argLine>
-                        -Xbootclasspath/p:${jaxws.bootclasspath}
-                    </argLine>
                     <includes>
                         <include>**/*Tests.java</include>
                     </includes>

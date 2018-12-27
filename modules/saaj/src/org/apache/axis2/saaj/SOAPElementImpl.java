@@ -117,12 +117,10 @@ public class SOAPElementImpl<T extends OMElement> extends NodeImpl<Element,T> im
             }
         }
 
-        childEle.target.setUserData(SAAJ_NODE, childEle, null);
         if (namespaceURI != null && namespaceURI.trim().length() > 0) {
             childEle.omTarget.setNamespace(childEle.omTarget.declareNamespace(namespaceURI, prefix));
         }
         target.appendChild(childEle.target);
-        childEle.target.getParentNode().setUserData(SAAJ_NODE, this, null);
         childEle.setParentElement(this);
         return childEle;
     }
@@ -138,12 +136,10 @@ public class SOAPElementImpl<T extends OMElement> extends NodeImpl<Element,T> im
         SOAPElementImpl<OMElement> childEle = (SOAPElementImpl<OMElement>)getOwnerDocument().
                         createElementNS(namespaceURI, prefix.length() == 0 ? localName : prefix + ":" + localName);
     
-        childEle.target.setUserData(SAAJ_NODE, childEle, null);
         childEle.omTarget.setNamespace(prefix.length() == 0
                 ? childEle.omTarget.declareDefaultNamespace(namespaceURI)
                 : childEle.omTarget.declareNamespace(namespaceURI, prefix));
         target.appendChild(childEle.target);
-        childEle.target.getParentNode().setUserData(SAAJ_NODE, this, null);
         childEle.setParentElement(this);
         return childEle;
     }
@@ -166,10 +162,8 @@ public class SOAPElementImpl<T extends OMElement> extends NodeImpl<Element,T> im
       */
     public SOAPElement addChildElement(String localName) throws SOAPException {
         SOAPElementImpl<OMElement> childEle =
-                new SOAPElementImpl<OMElement>((OMElement)getOwnerDocument().createElementNS(null, localName));
-        childEle.target.setUserData(SAAJ_NODE, childEle, null);
+                (SOAPElementImpl<OMElement>)getOwnerDocument().createElementNS(null, localName);
         target.appendChild(childEle.target);
-        childEle.target.getParentNode().setUserData(SAAJ_NODE, this, null);
         childEle.setParentElement(this);
         return childEle;
     }

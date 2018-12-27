@@ -20,12 +20,9 @@ package org.apache.axis2.jaxbri;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.axis2.Constants;
-import org.apache.axis2.description.AxisService;
-import org.apache.axis2.engine.AxisConfiguration;
-import org.apache.axis2.testutils.UtilServer;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.apache.axis2.testutils.Axis2Server;
+import org.apache.axis2.testutils.ClientHelper;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.foo.wsns.axis2.test01.Test01;
@@ -33,22 +30,15 @@ import com.foo.wsns.axis2.test01.Test01Stub;
 import com.foo.xmlns.axis2.test01.Add;
 
 public class Test01Test {
-    @BeforeClass
-    public static void startServer() throws Exception {
-        UtilServer.start(System.getProperty("basedir", ".") + "/target/repo/Test01");
-        AxisConfiguration axisConfiguration = UtilServer.getConfigurationContext().getAxisConfiguration();
-        AxisService service = axisConfiguration.getService("Test01");
-        service.getParameter(Constants.SERVICE_CLASS).setValue(Test01Impl.class.getName());
-    }
+    @ClassRule
+    public static Axis2Server server = new Axis2Server("target/repo/Test01");
     
-    @AfterClass
-    public static void stopServer() throws Exception {
-        UtilServer.stop();
-    }
+    @ClassRule
+    public static ClientHelper clientHelper = new ClientHelper(server);
     
     @Test
     public void test() throws Exception {
-        Test01 stub = new Test01Stub(UtilServer.getConfigurationContext(), "http://127.0.0.1:" + UtilServer.TESTING_PORT + "/axis2/services/Test01");
+        Test01 stub = clientHelper.createStub(Test01Stub.class, "Test01");
         Add add = new Add();
         add.setArg1(3);
         add.setArg2(4);

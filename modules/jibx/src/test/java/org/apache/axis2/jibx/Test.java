@@ -19,54 +19,29 @@
 
 package org.apache.axis2.jibx;
 
-import junit.framework.TestCase;
-import org.apache.axis2.description.AxisService;
-import org.apache.axis2.jibx.customer.EchoCustomerServiceStub;
-import org.apache.axis2.testutils.UtilServer;
-import org.apache.axis2.util.Utils;
+import static org.junit.Assert.assertEquals;
 
-import javax.xml.namespace.QName;
+import org.apache.axis2.jibx.customer.EchoCustomerServiceStub;
+import org.apache.axis2.testutils.Axis2Server;
+import org.junit.ClassRule;
 
 /**
  * Full code generation and runtime test for JiBX data binding extension. This is based on the
  * XMLBeans test code.
  */
-public class Test extends TestCase {
-    private static final String REPOSITORY_DIR =
-            System.getProperty("basedir", ".") + "/src/test/repo/";
+public class Test {
+    @ClassRule
+    public static Axis2Server server = new Axis2Server("target/repo/echo");
 
-    public static final QName serviceName = new QName("EchoCustomerService");
-    public static final QName operationName = new QName("echo");
-
-    private AxisService service;
-
-    private void startServer() throws Exception {
-        service = Utils.createSimpleService(serviceName,
-                                            Echo.class.getName(), operationName);
-        UtilServer.start(REPOSITORY_DIR);
-        UtilServer.deployService(service);
-    }
-
-    private void stopServer() throws Exception {
-        UtilServer.unDeployService(serviceName);
-        UtilServer.stop();
-/*        File outputFile = new File(OUTPUT_LOCATION_BASE);
-        if (outputFile.exists() && outputFile.isDirectory()){
-            deleteDir(outputFile);
-        }   */
-    }
-
+    @org.junit.Test
     public void testBuildAndRun() throws Exception {
-        startServer();
-
 //         finish by testing a roundtrip call to the echo server
         Person person = new Person(42, "John", "Smith");
         Customer customer = new Customer("Redmond", person, "+14258858080",
                                          "WA", "14619 NE 80th Pl.", new Integer(98052));
-        EchoCustomerServiceStub stub = new EchoCustomerServiceStub(UtilServer.getConfigurationContext(),
-                "http://127.0.0.1:" + UtilServer.TESTING_PORT + "/axis2/services/EchoCustomerService/echo");
+        EchoCustomerServiceStub stub = new EchoCustomerServiceStub(server.getConfigurationContext(),
+                server.getEndpoint("Echo") + "/echo");
         Customer result = stub.echo(customer);
-        stopServer();
         assertEquals("Result object does not match request object",
                      customer, result);
     }

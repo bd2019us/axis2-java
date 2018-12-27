@@ -38,9 +38,7 @@ import org.apache.axis2.util.Utils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import javax.xml.stream.FactoryConfigurationError;
 import javax.xml.stream.XMLStreamException;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URL;
@@ -84,26 +82,15 @@ public class SOAPMessageFormatter implements MessageFormatter {
                     message = ((SOAPFactory)envelope.getOMFactory()).createSOAPMessage();
                     message.setSOAPEnvelope(envelope);
                 }
-                if (preserve) {
-                    message.serialize(out, format);
-                } else {
-                    message.serializeAndConsume(out, format);
-                }
+                message.serialize(out, format, preserve);
             }
-        } catch (XMLStreamException e) {
+        } catch (IOException e) {
             throw AxisFault.makeFault(e);
         } finally {
             if (log.isDebugEnabled()) {
                 log.debug("end writeTo()");
             }
         }
-    }
-
-    public byte[] getBytes(MessageContext msgCtxt, OMOutputFormat format)
-            throws AxisFault {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        writeTo(msgCtxt, format, out, true);
-        return out.toByteArray();
     }
 
     public String getContentType(MessageContext msgCtxt, OMOutputFormat format,

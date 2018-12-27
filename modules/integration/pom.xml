@@ -33,23 +33,12 @@
     <dependencies>
         <dependency>
             <groupId>org.apache.axis2</groupId>
-            <artifactId>axis2-clustering</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-transport-http</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-transport-local</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.axis2</groupId>
-            <artifactId>scripting</artifactId>
-            <type>mar</type>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -79,11 +68,6 @@
         </dependency>
         <dependency>
             <groupId>org.apache.axis2</groupId>
-            <artifactId>axis2-metadata</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-mtompolicy</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -95,16 +79,6 @@
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-spring</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.axis2</groupId>
-            <artifactId>org.apache.axis2.osgi</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.axis2</groupId>
-            <artifactId>axis2-xmlbeans</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -129,6 +103,17 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.google.truth</groupId>
+            <artifactId>truth</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.axis2</groupId>
+            <artifactId>axis2-testutils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
             <scope>test</scope>
@@ -136,6 +121,39 @@
         <dependency>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.sun.activation</groupId>
+            <artifactId>javax.activation</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>SOAP12TestModuleB</artifactId>
+            <version>${project.version}</version>
+            <type>mar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>SOAP12TestModuleC</artifactId>
+            <version>${project.version}</version>
+            <type>mar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>SOAP12TestServiceB</artifactId>
+            <version>${project.version}</version>
+            <type>aar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>SOAP12TestServiceC</artifactId>
+            <version>${project.version}</version>
+            <type>aar</type>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -215,7 +233,19 @@
                         </goals>
                         <configuration>
                             <outputDirectory>target/test-resources/samples</outputDirectory>
-                            <axis2xml>conf/axis2.xml</axis2xml>
+                            <generatedAxis2xml>
+                                <modules>
+                                    <module>addressing</module>
+                                </modules>
+                                <handlers>
+                                    <handler>
+                                        <flow>InFlow</flow>
+                                        <phase>Transport</phase>
+                                        <name>RequestURIOperationDispatcher</name>
+                                        <className>org.apache.axis2.dispatchers.RequestURIOperationDispatcher</className>
+                                    </handler>
+                                </handlers>
+                            </generatedAxis2xml>
                             <modules>addressing</modules>
                         </configuration>
                     </execution>
@@ -227,7 +257,11 @@
                         </goals>
                         <configuration>
                             <outputDirectory>target/test-resources/repository-client</outputDirectory>
-                            <axis2xml>conf/axis2.xml</axis2xml>
+                            <generatedAxis2xml>
+                                <modules>
+                                    <module>addressing</module>
+                                </modules>
+                            </generatedAxis2xml>
                             <modules>addressing</modules>
                         </configuration>
                     </execution>
@@ -274,7 +308,11 @@
                         </goals>
                         <configuration>
                             <outputDirectory>target/test-resources/integrationRepo</outputDirectory>
-                            <axis2xml>conf/axis2.xml</axis2xml>
+                            <generatedAxis2xml>
+                                <modules>
+                                    <module>addressing</module>
+                                </modules>
+                            </generatedAxis2xml>
                             <modules>addressing</modules>
                         </configuration>
                     </execution>
@@ -358,8 +396,14 @@
                         </goals>
                         <configuration>
                             <outputDirectory>target/Repository</outputDirectory>
-                            <axis2xml>conf/axis2.xml</axis2xml>
-                            <modules>addressing</modules>
+                            <generatedAxis2xml>
+                                <modules>
+                                    <module>addressing</module>
+                                </modules>
+                            </generatedAxis2xml>
+                            <modules>addressing,SOAP12TestModuleB,SOAP12TestModuleC</modules>
+                            <includeServices>true</includeServices>
+                            <services>SOAP12TestServiceB,SOAP12TestServiceC</services>
                         </configuration>
                     </execution>
                     <execution>
@@ -370,7 +414,11 @@
                         </goals>
                         <configuration>
                             <outputDirectory>target/perf2/build/repo</outputDirectory>
-                            <axis2xml>conf/axis2.xml</axis2xml>
+                            <generatedAxis2xml>
+                                <modules>
+                                    <module>addressing</module>
+                                </modules>
+                            </generatedAxis2xml>
                             <modules>addressing</modules>
                         </configuration>
                     </execution>
@@ -382,7 +430,11 @@
                         </goals>
                         <configuration>
                             <outputDirectory>target/perf/build/repo/conf</outputDirectory>
-                            <axis2xml>conf/axis2.xml</axis2xml>
+                            <generatedAxis2xml>
+                                <modules>
+                                    <module>addressing</module>
+                                </modules>
+                            </generatedAxis2xml>
                             <modules>addressing</modules>
                         </configuration>
                     </execution>
@@ -402,6 +454,19 @@
                 <configuration>
                     <configurationDirectory>conf</configurationDirectory>
                     <includeServices>false</includeServices>
+                    <generatedAxis2xml>
+                        <transportReceivers>
+                            <transportReceiver>
+                                <name>http</name>
+                                <parameters>
+                                    <parameter>
+                                        <name>port</name>
+                                        <value>0</value>
+                                    </parameter>
+                                </parameters>
+                            </transportReceiver>
+                        </transportReceivers>
+                    </generatedAxis2xml>
                 </configuration>
             </plugin>
             <plugin>
@@ -478,11 +543,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <inherited>true</inherited>
                 <configuration>
-                    <!-- The pertest forkMode is not ideal but seems to be necessary
-                         because the test server doesn't shut down properly :-(
-                         Should be removed if possible -->
-                    <forkMode>pertest</forkMode>
-                    <argLine>-Xms256m -Xmx512m</argLine>
+                    <argLine>${argLine} -Xms256m -Xmx512m</argLine>
                     <!-- Enable the next 2 lines if you want to attach a debugger
                  <argLine>-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5006</argLine>-->
                     <includes>

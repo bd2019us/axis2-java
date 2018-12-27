@@ -33,8 +33,6 @@ import org.apache.axis2.util.JavaUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import javax.xml.stream.XMLStreamException;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URL;
@@ -45,72 +43,6 @@ import java.net.URL;
 public class ApplicationXMLFormatter implements MessageFormatter {
 
     private static final Log log = LogFactory.getLog(ApplicationXMLFormatter.class);
-    public byte[] getBytes(MessageContext 
-                           messageContext, 
-                           OMOutputFormat format) throws AxisFault {
-        return getBytes(messageContext, format, false);
-    }
-    
-    /**
-     * Get the bytes for this message
-     * @param messageContext
-     * @param format
-     * @param preserve (indicates if the OM should be preserved or consumed)
-     * @return
-     * @throws AxisFault
-     */
-    public byte[] getBytes(MessageContext messageContext, 
-                           OMOutputFormat format, 
-                           boolean preserve) throws AxisFault {
-
-        if (log.isDebugEnabled()) {
-            log.debug("start getBytes()");
-            log.debug("  fault flow=" + 
-                      (messageContext.getFLOW() == MessageContext.OUT_FAULT_FLOW));
-        }
-        try {
-            OMElement omElement;
-
-            // Find the correct element to serialize.  Normally it is the first element
-            // in the body.  But if this is a fault, use the detail entry element or the 
-            // fault reason.
-            if (messageContext.getFLOW() == MessageContext.OUT_FAULT_FLOW) {
-                SOAPFault fault = messageContext.getEnvelope().getBody().getFault();
-                SOAPFaultDetail soapFaultDetail = fault.getDetail();
-                omElement = soapFaultDetail.getFirstElement();
-
-                if (omElement == null) {
-                    omElement = fault.getReason();
-                }
-
-            } else {
-                // Normal case: The xml payload is the first element in the body.
-                omElement = messageContext.getEnvelope().getBody().getFirstElement();
-            }
-            ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
-
-            if (omElement != null) {
-
-                try {
-                    if (preserve) {
-                        omElement.serialize(bytesOut, format);
-                    } else {
-                        omElement.serializeAndConsume(bytesOut, format);
-                    }
-                } catch (XMLStreamException e) {
-                    throw AxisFault.makeFault(e);
-                }
-
-                return bytesOut.toByteArray();
-            }
-
-            return new byte[0];
-        } finally {
-            if (log.isDebugEnabled()) {
-                log.debug("end getBytes()");
-            }
-        }
-    }
 
     public void writeTo(MessageContext messageContext, OMOutputFormat format,
                         OutputStream outputStream, boolean preserve) throws AxisFault {
@@ -136,12 +68,8 @@ public class ApplicationXMLFormatter implements MessageFormatter {
             }
             if (omElement != null) {
                 try {
-                    if (preserve) {
-                        omElement.serialize(outputStream, format);
-                    } else {
-                        omElement.serializeAndConsume(outputStream, format);
-                    }
-                } catch (XMLStreamException e) {
+                    omElement.serialize(outputStream, format, preserve);
+                } catch (IOException e) {
                     throw AxisFault.makeFault(e);
                 }
             }

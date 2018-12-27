@@ -31,7 +31,6 @@ import org.apache.commons.logging.LogFactory;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -50,32 +49,6 @@ public class FastInfosetMessageFormatter implements MessageFormatter {
             OMOutputFormat format, String soapAction) {
 
         return null;
-    }
-
-    /**
-     * Retrieves the raw bytes from the SOAP envelop.
-     * 
-     * @see org.apache.axis2.transport.MessageFormatter#getBytes(org.apache.axis2.context.MessageContext, org.apache.axiom.om.OMOutputFormat)
-     */
-    public byte[] getBytes(MessageContext messageContext, OMOutputFormat format)
-            throws AxisFault {
-        OMElement element = messageContext.getEnvelope();
-        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        
-        try {
-            //Creates StAX document serializer which actually implements the XMLStreamWriter
-            XMLStreamWriter streamWriter = new StAXDocumentSerializer(outStream);
-            streamWriter.writeStartDocument();
-            element.serializeAndConsume(streamWriter);
-            //TODO Looks like the SOAP envelop doesn't have an end document tag. Find out why?
-            streamWriter.writeEndDocument();
-            
-            return outStream.toByteArray();
-            
-        } catch (XMLStreamException xmlse) {
-            logger.error(xmlse.getMessage());
-            throw new AxisFault(xmlse.getMessage(), xmlse);
-        }
     }
 
     /**
@@ -145,11 +118,7 @@ public class FastInfosetMessageFormatter implements MessageFormatter {
             //Create the StAX document serializer
             XMLStreamWriter streamWriter = new StAXDocumentSerializer(outputStream);
             streamWriter.writeStartDocument();
-            if (preserve) {
-                element.serialize(streamWriter);
-            } else {
-                element.serializeAndConsume(streamWriter);
-            }
+            element.serialize(streamWriter, preserve);
 //            TODO Looks like the SOAP envelop doesn't have a end document tag. Find out why?
             streamWriter.writeEndDocument();
         } catch (XMLStreamException xmlse) {

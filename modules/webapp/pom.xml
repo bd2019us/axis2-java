@@ -41,11 +41,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.axis2</groupId>
-            <artifactId>axis2-java2wsdl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
         </dependency>
@@ -62,11 +57,6 @@
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-jaxws</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.axis2</groupId>
-            <artifactId>axis2-jaxbri</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -127,6 +117,14 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <!-- Not required for the Maven build, but necessary to avoid errors when
+                 importing the project into an IDE. -->
+            <groupId>javax.servlet.jsp</groupId>
+            <artifactId>jsp-api</artifactId>
+            <version>2.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-mtompolicy</artifactId>
             <version>${project.version}</version>
@@ -140,6 +138,72 @@
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-clustering</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>axis2-transport-http</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.axis2</groupId>
+            <artifactId>axis2-transport-http-hc3</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>axis2-transport-local</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>axis2-transport-jms</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.geronimo.specs</groupId>
+                    <artifactId>geronimo-jms_1.1_spec</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>axis2-transport-mail</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>axis2-transport-tcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>axis2-transport-udp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>axis2-transport-xmpp</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>jivesoftware</groupId>
+                    <artifactId>smack</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jivesoftware</groupId>
+                    <artifactId>smackx</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-lang</groupId>
+                    <artifactId>commons-lang</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <!-- codegen is required for Rampart because of AXIS2-4265 -->
+            <groupId>org.apache.axis2</groupId>
+            <artifactId>axis2-codegen</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -164,12 +228,16 @@
             <artifactId>taglibs-standard-impl</artifactId>
             <version>1.2.5</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.ws.commons.axiom</groupId>
+            <artifactId>axiom-jaxb</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <finalName>axis2-${project.version}</finalName>
         <resources>
             <resource>
-                <directory>../kernel/conf</directory>
+                <directory>${project.build.directory}/kernel/conf</directory>
                 <includes>
                     <include>*.properties</include>
                 </includes>
@@ -210,9 +278,9 @@
             </plugin>
             <plugin>
                 <!-- Compile the JSPs so that syntax errors are detected during the build. -->
-	        <groupId>org.mortbay.jetty</groupId>
-	        <artifactId>jetty-jspc-maven-plugin</artifactId>
-	        <version>8.1.16.v20140903</version>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-jspc-maven-plugin</artifactId>
+                <version>9.4.12.v20180830</version>
                 <executions>
                     <execution>
                         <goals>
@@ -249,6 +317,24 @@
                             </resources>              
                         </configuration>            
                     </execution>
+                    <execution>
+                        <id>copy-kernel-conf-properties</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/kernel/conf</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>../kernel/conf</directory>
+                                    <includes>
+                                        <include>*.properties</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -281,8 +367,6 @@
                         WEB-INF/lib/spring-context-*.jar,
                         WEB-INF/lib/spring-core-*.jar,
                         WEB-INF/lib/spring-web-*.jar,
-                        WEB-INF/lib/ant-*.jar,
-                        WEB-INF/lib/ant-launcher-*.jar,
                         WEB-INF/lib/aopalliance-*.jar,
                         WEB-INF/lib/bsf-*.jar,
                         WEB-INF/lib/FastInfoset-*.jar,

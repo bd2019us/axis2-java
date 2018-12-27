@@ -30,6 +30,7 @@ import org.apache.maven.artifact.Artifact;
  * @goal create-repository
  * @phase package
  * @requiresDependencyResolution runtime
+ * @threadSafe
  */
 public class CreateRepositoryMojo extends AbstractCreateRepositoryMojo {
     /**
@@ -47,7 +48,7 @@ public class CreateRepositoryMojo extends AbstractCreateRepositoryMojo {
     private File outputDirectory;
     
     /**
-     * @parameter expression="${project.build.outputDirectory}"
+     * @parameter property="project.build.outputDirectory"
      * @readonly
      */
     private File buildOutputDirectory;

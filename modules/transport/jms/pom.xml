@@ -43,25 +43,23 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>2.0</version>
+                <groupId>com.github.veithen.alta</groupId>
+                <artifactId>alta-maven-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>copy</id>
                         <phase>generate-test-resources</phase>
                         <goals>
-                            <goal>copy</goal>
+                            <goal>generate-properties</goal>
                         </goals>
                         <configuration>
-                            <stripVersion>true</stripVersion>
-                            <artifactItems>
-                                <artifactItem>
+                            <name>aspectjweaver</name>
+                            <value>%file%</value>
+                            <artifacts>
+                                <artifact>
                                     <groupId>org.aspectj</groupId>
                                     <artifactId>aspectjweaver</artifactId>
-                                    <outputDirectory>target/lib</outputDirectory>
-                                </artifactItem>
-                            </artifactItems>
+                                </artifact>
+                            </artifacts>
                         </configuration>
                     </execution>
                 </executions>
@@ -76,7 +74,7 @@
                             <value>file:../../log4j.properties</value>
                         </property>
                     </systemProperties>
-                    <argLine>-javaagent:target/lib/aspectjweaver.jar -Xms64m -Xmx128m</argLine>
+                    <argLine>${argLine} -javaagent:${aspectjweaver} -Xms64m -Xmx128m</argLine>
                 </configuration>
             </plugin>
             <plugin>
@@ -111,43 +109,43 @@
             <version>${project.version}</version>
         </dependency>
 
-      <dependency>
-          <groupId>org.apache.axis2</groupId>
-          <artifactId>axis2-transport-testkit</artifactId>
-          <version>${project.version}</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-          <groupId>org.mockejb</groupId>
-          <artifactId>mockejb</artifactId>
-          <version>0.6-beta2</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-          <groupId>org.apache.qpid</groupId>
-          <artifactId>qpid-broker</artifactId>
-          <version>0.18</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-          <groupId>org.apache.qpid</groupId>
-          <artifactId>qpid-client</artifactId>
-          <version>0.18</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-          <groupId>org.apache.activemq</groupId>
-          <artifactId>activemq-core</artifactId>
-          <version>5.1.0</version>
-          <scope>test</scope>
-          <exclusions>
-              <!-- We want to choose the JAF implementation ourselves -->
-              <exclusion>
-                  <groupId>javax.activation</groupId>
-                  <artifactId>activation</artifactId>
-              </exclusion>
-          </exclusions>
-      </dependency>
+        <dependency>
+            <groupId>org.apache.axis2</groupId>
+            <artifactId>axis2-transport-testkit</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockejb</groupId>
+            <artifactId>mockejb</artifactId>
+            <version>0.6-beta2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.qpid</groupId>
+            <artifactId>qpid-broker</artifactId>
+            <version>0.18</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.qpid</groupId>
+            <artifactId>qpid-client</artifactId>
+            <version>0.18</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.activemq</groupId>
+            <artifactId>activemq-core</artifactId>
+            <version>5.1.0</version>
+            <scope>test</scope>
+            <exclusions>
+                <!-- We want to choose the JAF implementation ourselves -->
+                <exclusion>
+                    <groupId>javax.activation</groupId>
+                    <artifactId>activation</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
         <dependency>
             <groupId>org.apache.geronimo.specs</groupId>
@@ -156,9 +154,8 @@
         </dependency>
 
         <dependency>
-            <groupId>org.apache.geronimo.specs</groupId>
-            <artifactId>geronimo-jta_1.0.1B_spec</artifactId>
-            <version>${jta-spec.version}</version>
+            <groupId>javax.transaction</groupId>
+            <artifactId>javax.transaction-api</artifactId>
         </dependency>
         
         <dependency>
@@ -180,7 +177,6 @@
     
     <properties>
         <jms-1.1-spec.version>1.1</jms-1.1-spec.version>
-        <jta-spec.version>1.0</jta-spec.version>
     </properties>
 
 </project>

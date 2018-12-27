@@ -170,6 +170,9 @@
         <dependencySet>
             <useProjectArtifact>false</useProjectArtifact>
             <outputDirectory>lib</outputDirectory>
+            <!-- Use artifact.baseVersion instead of artifact.version to avoid inconsistency with
+                 the Web app built by Maven. This only affects snapshot builds. -->
+            <outputFileNameMapping>${artifact.artifactId}-${artifact.baseVersion}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
             <includes>
                 <include>*:*:jar</include>
             </includes>
@@ -185,12 +188,10 @@
                  <exclude>com.sun.xml.fastinfoset:FastInfoset:jar</exclude>
                  <exclude>rhino:js:jar</exclude>
                  <exclude>javax.servlet:servlet-api</exclude>
-                 <exclude>javax.xml.ws:jaxws-api:jar</exclude>
                  <exclude>com.sun.xml.messaging.saaj:saaj-impl:jar</exclude>
                  <exclude>com.sun.xml.stream:sjsxp:jar</exclude>
                  <exclude>com.sun.org.apache.xml.internal:resolver:jar</exclude>
                  <exclude>javax.xml.stream:stax-api:jar</exclude>
-                 <exclude>javax.xml.soap:saaj-api:jar</exclude>
                  <exclude>org.jvnet:mimepull:jar</exclude>
             </excludes>
         </dependencySet>
@@ -213,15 +214,17 @@
             <outputDirectory>webapp</outputDirectory>
             <unpackOptions>
                 <includes>
-                    <include>WEB-INF/**/*</include>
+                    <include>org/apache/axis2/soapmonitor/applet/**/*</include>
+                    <include>WEB-INF/classes/**/*</include>
+                    <include>WEB-INF/include/**/*</include>
+                    <include>WEB-INF/lib/taglibs-standard-impl-*.jar</include>
+                    <include>WEB-INF/lib/taglibs-standard-spec-*.jar</include>
+                    <include>WEB-INF/lib/axis2-soapmonitor-servlet-*.jar</include>
+                    <include>WEB-INF/tags/**/*</include>
+                    <include>WEB-INF/views/**/*</include>
+                    <include>WEB-INF/web.xml</include>
                     <include>axis2-web/**/*</include>
                 </includes>
-                <excludes>
-                    <exclude>WEB-INF/conf/**/*</exclude>
-                    <exclude>WEB-INF/lib/**/*</exclude>
-                    <exclude>WEB-INF/services/**/*</exclude>
-                    <exclude>WEB-INF/modules/**/*</exclude>
-                </excludes>
             </unpackOptions>
         </dependencySet>
     </dependencySets>

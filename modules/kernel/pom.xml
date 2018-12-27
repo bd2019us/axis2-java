@@ -45,9 +45,9 @@
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-ws-metadata_2.0_spec</artifactId>
         </dependency>
-	  <dependency>
-            <groupId>org.apache.geronimo.specs</groupId>
-            <artifactId>geronimo-jta_1.1_spec</artifactId>
+        <dependency>
+            <groupId>javax.transaction</groupId>
+            <artifactId>javax.transaction-api</artifactId>
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -90,14 +90,19 @@
             <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
-	    <dependency>
-	        <groupId>xmlunit</groupId>
-	        <artifactId>xmlunit</artifactId>
+        <dependency>
+            <groupId>xmlunit</groupId>
+            <artifactId>xmlunit</artifactId>
             <scope>test</scope>
-	    </dependency>
+        </dependency>
         <dependency>
             <groupId>com.google.truth</groupId>
             <artifactId>truth</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ws.commons.axiom</groupId>
+            <artifactId>axiom-truth</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -108,6 +113,11 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.sun.activation</groupId>
+            <artifactId>javax.activation</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

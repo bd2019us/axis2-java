@@ -71,7 +71,7 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>axis2-jaxbri</artifactId>
+            <artifactId>axis2-jaxbri-codegen</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -274,6 +274,27 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- https://issues.apache.org/jira/browse/MJAVADOC-469 -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>create-javadoc-compat-out-dir</id>
+                        <phase>pre-site</phase>
+                        <goals>
+                            <goal>regex-property</goal>
+                        </goals>
+                        <configuration>
+                            <name>javadoc-compat-out-dir</name>
+                            <value>${project.build.directory}</value>
+                            <regex>\\</regex>
+                            <replacement>\\\\</replacement>
+                            <failIfNoMatch>false</failIfNoMatch>
+                        </configuration>
+                    </execution>
+                </executions>
+             </plugin>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <executions>
@@ -294,7 +315,7 @@
                             <doclet>org.apache.axis2.transport.testkit.doclet.ResourceInfoDoclet</doclet>
                             <useStandardDocletOptions>false</useStandardDocletOptions>
                             <show>private</show>
-                            <additionalparam>-out ${project.build.directory}/resource-info.dat</additionalparam>
+                            <additionalparam>-out "${javadoc-compat-out-dir}/resource-info.dat"</additionalparam>
                         </configuration>
                     </execution>
                     <execution>
@@ -314,7 +335,8 @@
                             <doclet>org.apache.axis2.transport.testkit.doclet.TestkitJavadocDoclet</doclet>
                             <useStandardDocletOptions>true</useStandardDocletOptions>
                             <additionalparam>
-                                -resource-info ${project.build.directory}/resource-info.dat
+                                ${javadoc.nolint.param}
+                                -resource-info "${javadoc-compat-out-dir}/resource-info.dat"
                             </additionalparam>
                             <reportOutputDirectory>${project.reporting.outputDirectory}</reportOutputDirectory>
                             <destDir>.</destDir>
@@ -323,11 +345,10 @@
                 </executions>
                 <configuration>
                     <additionalJOption>-J-Xmx256m</additionalJOption>
+                    <detectJavaApiLink>false</detectJavaApiLink>
                     <links>
-                        <link>http://docs.oracle.com/javase/1.5.0/docs/api/</link>
-                        <link>http://docs.oracle.com/javaee/5/api/</link>
+                        <link>https://docs.oracle.com/javase/7/docs/api/</link>
                         <link>http://ws.apache.org/axiom/apidocs/</link>
-                        <link>http://jaxen.org/apidocs/</link>
                     </links>
                     <includeDependencySources>true</includeDependencySources>
                     <dependencySourceIncludes>

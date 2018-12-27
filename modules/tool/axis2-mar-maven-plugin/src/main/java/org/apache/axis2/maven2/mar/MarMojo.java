@@ -39,6 +39,7 @@ import java.io.IOException;
  * @goal mar
  * @phase package
  * @requiresDependencyResolution runtime
+ * @threadSafe
  */
 public class MarMojo extends AbstractMarMojo
 {
@@ -47,14 +48,14 @@ public class MarMojo extends AbstractMarMojo
      *
      * @required
      * @readonly
-     * @parameter expression="${session}"
+     * @parameter property="session"
      */
     private MavenSession session;
     
     /**
      * The directory for the generated mar.
      * 
-     * @parameter expression="${project.build.directory}"
+     * @parameter default-value="${project.build.directory}"
      * @required
      */
     private String outputDirectory;
@@ -62,7 +63,7 @@ public class MarMojo extends AbstractMarMojo
     /**
      * The name of the generated mar.
      * 
-     * @parameter expression="${project.build.finalName}"
+     * @parameter default-value="${project.build.finalName}"
      * @required
      */
     private String marName;
@@ -93,7 +94,7 @@ public class MarMojo extends AbstractMarMojo
      * Whether this is the main artifact being built. Set to <code>false</code> if you don't want to install or deploy
      * it to the local repository instead of the default one in an execution.
      * 
-     * @parameter expression="${primaryArtifact}" default-value="true"
+     * @parameter default-value="true"
      */
     private boolean primaryArtifact;
 

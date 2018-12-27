@@ -81,6 +81,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.sun.activation</groupId>
+            <artifactId>javax.activation</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-testutils</artifactId>
             <version>${project.version}</version>
@@ -104,75 +109,18 @@
         <url>http://svn.apache.org/viewvc/axis/axis2/java/core/trunk/modules/jaxws-integration</url>
     </scm>
     <build>
-        <sourceDirectory>src</sourceDirectory>
-        <testSourceDirectory>test</testSourceDirectory>
-        <resources>
-            <resource>
-                <directory>conf</directory>
-                <includes>
-                    <include>**/*.properties</include>
-                </includes>
-            </resource>
-            <resource>
-                <directory>src</directory>
-                <includes>
-                    <include>**/*.properties</include>
-                    <include>**/*.xml</include>
-                </includes>
-            </resource>
-            <resource>
-                <directory>resources</directory>
-                <includes>
-                    <include>**/*</include>
-                </includes>
-            </resource>
-        </resources>
         <testResources>
             <testResource>
-                <directory>test</directory>
+                <directory>src/test/java</directory>
                 <includes>
                     <include>**/*.xml</include>
                     <include>**/*.wsdl</include>
+                    <include>**/*.xsd</include>
                     <include>**/*.properties</include>
                 </includes>
             </testResource>
         </testResources>
         <plugins>
-            <plugin>
-                <groupId>com.github.veithen.alta</groupId>
-                <artifactId>alta-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>generate-properties</goal>
-                        </goals>
-                        <configuration>
-                            <artifacts>
-                                <artifact>
-                                    <groupId>javax.xml.bind</groupId>
-                                    <artifactId>jaxb-api</artifactId>
-                                </artifact>
-                                <artifact>
-                                    <groupId>org.apache.geronimo.specs</groupId>
-                                    <artifactId>geronimo-jaxws_2.2_spec</artifactId>
-                                </artifact>
-                            </artifacts>
-                            <name>jaxws.bootclasspath</name>
-                            <value>%file%</value>
-                            <separator>${path.separator}</separator>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <inherited>true</inherited>
-                <configuration>
-                    <compilerArgument>
-                        -Xbootclasspath/p:${jaxws.bootclasspath}
-                    </compilerArgument>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.apache.axis2</groupId>
                 <artifactId>axis2-wsdl2code-maven-plugin</artifactId>
@@ -245,6 +193,33 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <id>build-addressing-repo</id>
+                        <goals>
+                            <goal>create-test-repository</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/addressing-repo</outputDirectory>
+                            <modules>addressing</modules>
+                            <axis2xml>test-resources/axis2_addressing.xml</axis2xml>
+                            <jaxwsServices>
+                                <jaxwsService>
+                                    <name>AddressingProvider</name>
+                                    <packages>
+                                        <package>org.apache.axis2.jaxws.provider.addressing</package>
+                                    </packages>
+                                    <resourcesDirectory>src/test/servicejars/AddressingProvider</resourcesDirectory>
+                                </jaxwsService>
+                                <jaxwsService>
+                                    <name>AsyncService2</name>
+                                    <packages>
+                                        <package>org.apache.axis2.jaxws.sample.asyncdoclit</package>
+                                    </packages>
+                                    <resourcesDirectory>src/test/servicejars/AsyncService2</resourcesDirectory>
+                                </jaxwsService>
+                            </jaxwsServices>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>build-client-repo</id>
                         <phase>generate-test-resources</phase>
                         <goals>
@@ -252,103 +227,98 @@
                         </goals>
                         <configuration>
                             <outputDirectory>${project.build.directory}/client-repo</outputDirectory>
+                            <axis2xml>test-resources/axis2.xml</axis2xml>
                             <modules>addressing</modules>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>jaxb2-maven-plugin</artifactId>
+                <groupId>com.github.veithen.maven</groupId>
+                <artifactId>xjc-maven-plugin</artifactId>
                 <executions>
                     <execution>
                         <id>xjc-soap11</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>XmlSchema</sourceType>
-                            <testSources>
-                                <testSource>test-resources/xsd/soap11.xsd</testSource>
-                            </testSources>
+                            <files>
+                                <file>test-resources/xsd/soap11.xsd</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/soap11</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-echo</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>XmlSchema</sourceType>
-                            <testSources>
-                                <testSource>test-resources/xsd/echo.xsd</testSource>
-                            </testSources>
+                            <files>
+                                <file>test-resources/xsd/echo.xsd</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/echo</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-stock1</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>XmlSchema</sourceType>
-                            <testSources>
-                                <testSource>test-resources/xsd/stock1.xsd</testSource>
-                            </testSources>
+                            <files>
+                                <file>test-resources/xsd/stock1.xsd</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/stock1</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-stock2</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>XmlSchema</sourceType>
-                            <testSources>
-                                <testSource>test-resources/xsd/stock2.xsd</testSource>
-                            </testSources>
+                            <files>
+                                <file>test-resources/xsd/stock2.xsd</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/stock2</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-samplemtom</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>XmlSchema</sourceType>
-                            <testSources>
-                                <testSource>test-resources/xsd/samplemtom.xsd</testSource>
-                            </testSources>
+                            <files>
+                                <file>test-resources/xsd/samplemtom.xsd</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/samplemtom</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-greeterTypes</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>XmlSchema</sourceType>
-                            <testSources>
-                                <testSource>test-resources/xsd/greeterTypes.xsd</testSource>
-                            </testSources>
+                            <files>
+                                <file>test-resources/xsd/greeterTypes.xsd</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/greeterTypes</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-ProxyDocLitWrapped</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/ProxyDocLitWrapped.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/ProxyDocLitWrapped.wsdl</file>
+                            </files>
                             <packageName>org.test.proxy.doclitwrapped</packageName>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/ProxyDocLitWrapped</outputDirectory>
                         </configuration>
@@ -356,39 +326,26 @@
                     <execution>
                         <id>xjc-AddNumbers</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/AddNumbers.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/AddNumbers.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/AddNumbers</outputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>xjc-ProxyDocLitnonWrapped</id>
-                        <goals>
-                            <goal>testXjc</goal>
-                        </goals>
-                        <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/ProxyDocLitnonWrapped.wsdl</testSource>
-                            </testSources>
-                            <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/ProxyDocLitnonWrapped</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-samplemtomjpeg</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/samplemtomjpeg.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/samplemtomjpeg.wsdl</file>
+                            </files>
                             <packageName>org.apache.axis2.jaxws.sample.mtom1</packageName>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/samplemtomjpeg</outputDirectory>
                         </configuration>
@@ -396,13 +353,13 @@
                     <execution>
                         <id>xjc-RPCLit</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/RPCLit.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/RPCLit.wsdl</file>
+                            </files>
                             <packageName>org.test.proxy.rpclit</packageName>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/RPCLit</outputDirectory>
                         </configuration>
@@ -410,13 +367,13 @@
                     <execution>
                         <id>xjc-RPCLitSWA</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/RPCLitSWA.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/RPCLitSWA.wsdl</file>
+                            </files>
                             <packageName>org.test.proxy.rpclitswa</packageName>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/RPCLitSWA</outputDirectory>
                         </configuration>
@@ -424,117 +381,116 @@
                     <execution>
                         <id>xjc-gorilla_dlw</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/gorilla_dlw.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>src/test/java/org/apache/axis2/jaxws/proxy/gorilla_dlw/META-INF/gorilla_dlw.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/gorilla_dlw</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-SOAP12Echo</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/SOAP12Echo.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/SOAP12Echo.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/SOAP12Echo</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-AddNumbersHandler</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/AddNumbersHandler.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/AddNumbersHandler.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/AddNumbersHandler</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-HeadersHandler</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/HeadersHandler.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/HeadersHandler.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/HeadersHandler</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-async_doclitwr</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/async_doclitwr.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/async_doclitwr.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/async_doclitwr</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-async_doclitwr2</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/async_doclitwr2.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/async_doclitwr2.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/async_doclitwr2</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-FaultyWebService</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/FaultyWebService.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/FaultyWebService.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/FaultyWebService</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-FaultsService</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/FaultsService.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/FaultsService.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/FaultsService</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-jaxbsource</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>XmlSchema</sourceType>
-                            <testSources>
-                                <testSource>test-resources/xsd/jaxbsource.xsd</testSource>
-                            </testSources>
+                            <files>
+                                <file>test-resources/xsd/jaxbsource.xsd</file>
+                            </files>
                             <packageName>org.test.dispatch.jaxbsource</packageName>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/jaxbsource</outputDirectory>
                         </configuration>
@@ -542,188 +498,214 @@
                     <execution>
                         <id>xjc-doclit_nonwrap</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/doclit_nonwrap.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/doclit_nonwrap.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/doclit_nonwrap</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-doclitwrap</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/doclitwrap.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/doclitwrap.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/doclitwrap</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-doclitbare</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/doclitbare.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/doclitbare.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/doclitbare</outputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>xjc-EchoMessage</id>
-                        <goals>
-                            <goal>testXjc</goal>
-                        </goals>
-                        <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/EchoMessage.wsdl</testSource>
-                            </testSources>
-                            <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/EchoMessage</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-resourceinjection</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/resourceinjection.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/resourceinjection.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/resourceinjection</outputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>xjc-AnyType</id>
-                        <goals>
-                            <goal>testXjc</goal>
-                        </goals>
-                        <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/AnyType.wsdl</testSource>
-                            </testSources>
-                            <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/AnyType</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-MessageContext</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/MessageContext.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/MessageContext.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/MessageContext</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-WSDLMultiTests</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/WSDLMultiTests.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/WSDLMultiTests.wsdl</file>
+                            </files>
                             <packageName>multi</packageName>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/WSDLMultiTests</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
-                        <id>xjc-shapes</id>
-                        <goals>
-                            <goal>testXjc</goal>
-                        </goals>
-                        <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/shapes.wsdl</testSource>
-                            </testSources>
-                            <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/shapes</outputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
                         <id>xjc-rpclitenum</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/rpclitenum.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/rpclitenum.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/rpclitenum</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-rpclitstringarray</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/rpclitstringarray.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/rpclitstringarray.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/rpclitstringarray</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-swamtomservice</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/swamtomservice.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/swamtomservice.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/swamtomservice</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
                         <id>xjc-ProcessDocumentService</id>
                         <goals>
-                            <goal>testXjc</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
-                            <sourceType>WSDL</sourceType>
-                            <testSources>
-                                <testSource>test-resources/wsdl/ProcessDocumentService.wsdl</testSource>
-                            </testSources>
+                            <schemaLanguage>WSDL</schemaLanguage>
+                            <files>
+                                <file>test-resources/wsdl/ProcessDocumentService.wsdl</file>
+                            </files>
                             <outputDirectory>${project.build.directory}/generated-test-sources/jaxb/ProcessDocumentService</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>jaxws-maven-plugin</artifactId>
+                <groupId>com.github.veithen.maven</groupId>
+                <artifactId>wsimport-maven-plugin</artifactId>
                 <executions>
                     <execution>
                         <id>wsimport-SOAPActionTest</id>
                         <goals>
-                            <goal>wsimport-test</goal>
+                            <goal>generate-test-sources</goal>
                         </goals>
                         <configuration>
                             <wsdlFiles>
                                 <wsdlFile>${basedir}/src/test/repository/services/BookStoreService/META-INF/SOAPActionTest.wsdl</wsdlFile>
                             </wsdlFiles>
+                            <generateService>true</generateService>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>wsimport-AnyType</id>
+                        <goals>
+                            <goal>generate-test-sources</goal>
+                        </goals>
+                        <configuration>
+                            <wsdlFiles>
+                                <wsdlFile>${basedir}/src/test/java/org/apache/axis2/jaxws/anytype/META-INF/AnyType.wsdl</wsdlFile>
+                            </wsdlFiles>
+                            <packageName>org.apache.axis2.jaxws.anytype</packageName>
+                            <generateService>true</generateService>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>wsimport-shapes</id>
+                        <goals>
+                            <goal>generate-test-sources</goal>
+                        </goals>
+                        <configuration>
+                            <wsdlFiles>
+                                <wsdlFile>${basedir}/src/test/java/org/apache/axis2/jaxws/polymorphic/shape/META-INF/shapes.wsdl</wsdlFile>
+                            </wsdlFiles>
+                            <generateService>true</generateService>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>wsimport-EchoMessage</id>
+                        <goals>
+                            <goal>generate-test-sources</goal>
+                        </goals>
+                        <configuration>
+                            <wsdlFiles>
+                                <wsdlFile>${basedir}/src/test/java/org/apache/axis2/jaxws/nonanonymous/complextype/META-INF/EchoMessage.wsdl</wsdlFile>
+                            </wsdlFiles>
+                            <packageName>org.apache.axis2.jaxws.nonanonymous.complextype</packageName>
+                            <generateService>true</generateService>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>wsimport-proxy_doclit_unwr</id>
+                        <goals>
+                            <goal>generate-test-sources</goal>
+                        </goals>
+                        <configuration>
+                            <wsdlFiles>
+                                <wsdlFile>${basedir}/src/test/java/org/apache/axis2/jaxws/proxy/doclitnonwrapped/META-INF/proxy_doclit_unwr.wsdl</wsdlFile>
+                            </wsdlFiles>
+                            <packageName>org.apache.axis2.jaxws.proxy.doclitnonwrapped</packageName>
+                            <generateService>true</generateService>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>wsimport-ProxyDocLitWrapped</id>
+                        <goals>
+                            <goal>generate-test-sources</goal>
+                        </goals>
+                        <configuration>
+                            <wsdlFiles>
+                                <wsdlFile>${basedir}/src/test/java/org/apache/axis2/jaxws/proxy/doclitwrapped/META-INF/ProxyDocLitWrapped.wsdl</wsdlFile>
+                            </wsdlFiles>
+                            <packageName>org.apache.axis2.jaxws.proxy.doclitwrapped</packageName>
+                            <generateService>true</generateService>
                         </configuration>
                     </execution>
                 </executions>
@@ -754,7 +736,7 @@
                                         <include name="org/apache/axis2/jaxws/sample/wsgen/WSGenImpl.class" />
                                         <include name="org/apache/axis2/jaxws/sample/wsgen/jaxws/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/wsgen">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/wsgen">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -766,7 +748,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/security/server/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/security/server">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/security/server">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -778,7 +760,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/provider/string/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/string">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/provider/string">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -790,7 +772,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/provider/stringmsg/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/stringmsg">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/provider/stringmsg">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -802,7 +784,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/provider/source/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/source">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/provider/source">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -814,7 +796,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/provider/sourcemsg/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/sourcemsg">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/provider/sourcemsg">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -826,7 +808,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/provider/soapmsg/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/soapmsg">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/provider/soapmsg">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -838,7 +820,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/provider/soapmsgcheckmtom/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/soapmsgcheckmtom">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/provider/soapmsgcheckmtom">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -850,7 +832,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/provider/soapmsgmu/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/soapmsgmu">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/provider/soapmsgmu">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -862,7 +844,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/provider/soapmsgreturnnull/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/soapmsgreturnnull">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/provider/soapmsgreturnnull">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -874,7 +856,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/provider/jaxb/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/jaxb">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/provider/jaxb">
                                         <include name="META-INF/**" />
                                     </fileset>
                                     <fileset dir="target/test-classes">
@@ -889,7 +871,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/mtom1/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/mtom1">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/mtom1">
                                         <include name="META-INF/**" />
                                     </fileset>
                                     <fileset dir="target/test-classes">
@@ -904,7 +886,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/dispatch/server/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/dispatch/server">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/dispatch/server">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -917,7 +899,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/swamtom/server/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/swamtom/server">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/swamtom/server">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -931,7 +913,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/proxy/doclitwrapped/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/proxy/doclitwrapped">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/proxy/doclitwrapped">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -943,7 +925,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/proxy/doclitnonwrapped/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/proxy/doclitnonwrapped">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/proxy/doclitnonwrapped">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -955,7 +937,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/proxy/rpclit/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/proxy/rpclit">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/proxy/rpclit">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -967,7 +949,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/proxy/rpclitswa/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/proxy/rpclitswa">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/proxy/rpclitswa">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -975,23 +957,11 @@
                                 <jar destfile="${servicejars.dir}/RPCLitSWA.jar" basedir="${servicejars.dir}/RPCLitSWA" />
                                 <delete dir="${servicejars.dir}/RPCLitSWA" />
 
-                                <copy toDir="${servicejars.dir}/AddressingProvider/">
-                                    <fileset dir="target/test-classes">
-                                        <include name="org/apache/axis2/jaxws/provider/addressing/**" />
-                                    </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/provider/addressing/">
-                                        <include name="META-INF/**" />
-                                    </fileset>
-                                </copy>
-
-                                <jar destfile="${servicejars.dir}/AddressingProvider.jar" basedir="${servicejars.dir}/AddressingProvider" />
-                                <delete dir="${servicejars.dir}/AddressingProvider" />
-
                                 <copy toDir="${servicejars.dir}/SOAP12EchoService/">
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/proxy/soap12/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/proxy/soap12/server">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/proxy/soap12/server">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1003,7 +973,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/proxy/gorilla_dlw/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/proxy/gorilla_dlw">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/proxy/gorilla_dlw">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1018,7 +988,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/addressbook/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/addressbook">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/addressbook">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1046,7 +1016,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/nonwrap/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/nonwrap">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/nonwrap">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1056,7 +1026,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/wrap/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/wrap">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/wrap">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1066,7 +1036,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/addnumbers/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/addnumbers">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/addnumbers">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1076,7 +1046,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/addnumbershandler/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/addnumbershandler">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/addnumbershandler">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1086,7 +1056,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/headershandler/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/headershandler">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/headershandler">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1096,7 +1066,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/dlwmin/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/dlwmin">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/dlwmin">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1117,7 +1087,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/parallelasync/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/parallelasync/server">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/parallelasync/server">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1125,23 +1095,11 @@
                                 <jar destfile="${servicejars.dir}/AsyncService.jar" basedir="${servicejars.dir}/AsyncService" />
                                 <delete dir="${servicejars.dir}/AsyncService" />
 
-                                <copy toDir="${servicejars.dir}/AsyncService2/">
-                                    <fileset dir="target/test-classes">
-                                        <include name="org/apache/axis2/jaxws/sample/asyncdoclit/**" />
-                                    </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/asyncdoclit/server">
-                                        <include name="META-INF/**" />
-                                    </fileset>
-                                </copy>
-
-                                <jar destfile="${servicejars.dir}/AsyncService2.jar" basedir="${servicejars.dir}/AsyncService2" />
-                                <delete dir="${servicejars.dir}/AsyncService2" />
-
                                 <copy toDir="${servicejars.dir}/FaultyWebServiceService/">
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/faults/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/faults">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/faults">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1153,7 +1111,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/faultsservice/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/faultsservice">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/faultsservice">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1165,7 +1123,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/doclitbare/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/doclitbare">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/doclitbare">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1177,7 +1135,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/doclitbarenoarg/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/doclitbarenoarg">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/doclitbarenoarg">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1189,7 +1147,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/nonanonymous/complextype/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/nonanonymous/complextype">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/nonanonymous/complextype">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1201,7 +1159,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/resourceinjection/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/resourceinjection">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/resourceinjection">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1213,7 +1171,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/anytype/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/anytype">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/anytype">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1225,7 +1183,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/context/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/context">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/context">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1237,7 +1195,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/polymorphic/shape/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/polymorphic/shape">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/polymorphic/shape">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1249,7 +1207,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/rpclit/enumtype/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/rpclit/enumtype">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/rpclit/enumtype">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1262,7 +1220,7 @@
                                         <include name="org/apache/axis2/jaxws/rpclit/stringarray/**" />
                                         <include name="org/test/rpclit/stringarray/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/rpclit/stringarray/">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/rpclit/stringarray/">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1275,7 +1233,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/doclitbaremin/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/doclitbaremin/">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/doclitbaremin/">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1287,7 +1245,7 @@
                                     <fileset dir="target/test-classes">
                                         <include name="org/apache/axis2/jaxws/sample/stringlist/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/stringlist/">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/stringlist/">
                                         <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1324,7 +1282,7 @@
                                     <fileset dir="target/test-classes">
                                        <include name="org/apache/axis2/jaxws/handler/header/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/handler/header">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/handler/header">
                                        <include name="META-INF/**" />
                                        <include name="handler.xml" />               
                                     </fileset>
@@ -1332,7 +1290,7 @@
                                 </copy>    
                                 <!-- We have to explicitly copy the xml file refered to by the client interface HandlerChain annotation -->
                                 <copy toDir="target/test-classes/">
-                                    <fileset dir="test">
+                                    <fileset dir="src/test/java">
                                         <include name="org/apache/axis2/jaxws/handler/header/handler.xml" />
                                     </fileset>
                                 </copy>
@@ -1345,7 +1303,7 @@
                                     <fileset dir="target/test-classes">
                                        <include name="org/apache/axis2/jaxws/sample/mtomfeature/**" />
                                     </fileset>
-                                    <fileset dir="test/org/apache/axis2/jaxws/sample/mtomfeature/">
+                                    <fileset dir="src/test/java/org/apache/axis2/jaxws/sample/mtomfeature/">
                                        <include name="META-INF/**" />
                                     </fileset>
                                 </copy>
@@ -1388,8 +1346,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <inherited>true</inherited>
                 <configuration>
-                    <forkMode>pertest</forkMode>
-                    <argLine>-Xms256m -Xmx512m -Xbootclasspath/p:${jaxws.bootclasspath}</argLine>
+                    <argLine>${argLine} -Xms256m -Xmx512m</argLine>
                     <!-- Enable the next 2 lines if you want to attach a debugger
                     <argLine>-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5006</argLine>-->
                     <includes>
@@ -1420,16 +1377,6 @@
                         <property>
                             <name>javax.xml.soap.MetaFactory</name>
                             <value>org.apache.axis2.saaj.SAAJMetaFactoryImpl</value>
-                        </property>
-                        <!-- Need this for the client side to pickup an axis2.xml to configure SoapMessageMUProviderChecker -->
-                        <property>
-                            <name>org.apache.axis2.jaxws.config.path</name>
-                            <value>./target/test-classes/axis2.xml</value>
-                        </property>
-                        <!-- Need this for the client side to pickup the addressing mar -->
-                        <property>
-                            <name>org.apache.axis2.jaxws.repo.path</name>
-                            <value>./target/client-repo</value>
                         </property>
                         <!-- Prevent Mac OS X from showing an icon in the dock during the test run -->
                         <property>

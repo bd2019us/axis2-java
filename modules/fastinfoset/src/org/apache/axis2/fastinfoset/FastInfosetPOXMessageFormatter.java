@@ -31,7 +31,6 @@ import org.apache.commons.logging.LogFactory;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -50,33 +49,6 @@ public class FastInfosetPOXMessageFormatter implements MessageFormatter {
             OMOutputFormat format, String soapAction) {
 
         return null;
-    }
-
-    /**
-     * Retrieves the raw bytes from the SOAP envelop.
-     * 
-     * @see org.apache.axis2.transport.MessageFormatter#getBytes(org.apache.axis2.context.MessageContext, org.apache.axiom.om.OMOutputFormat)
-     */
-    public byte[] getBytes(MessageContext messageContext, OMOutputFormat format)
-            throws AxisFault {
-        //For POX drop the SOAP envelope and use the message body
-        OMElement element = messageContext.getEnvelope().getBody().getFirstElement();
-        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        
-        try {
-            //Creates StAX document serializer which actually implements the XMLStreamWriter
-            XMLStreamWriter streamWriter = new StAXDocumentSerializer(outStream);
-            //Since we drop the SOAP envelop we have to manually write the start document and the end document events
-            streamWriter.writeStartDocument();
-            element.serializeAndConsume(streamWriter);
-            streamWriter.writeEndDocument();
-            
-            return outStream.toByteArray();
-            
-        } catch (XMLStreamException xmlse) {
-            logger.error(xmlse.getMessage());
-            throw new AxisFault(xmlse.getMessage(), xmlse);
-        }
     }
 
     /**
@@ -148,11 +120,7 @@ public class FastInfosetPOXMessageFormatter implements MessageFormatter {
             XMLStreamWriter streamWriter = new StAXDocumentSerializer(outputStream);
             //Since we drop the SOAP envelop we have to manually write the start document and the end document events            
             streamWriter.writeStartDocument();
-            if (preserve) {
-                element.serialize(streamWriter);
-            } else {
-                element.serializeAndConsume(streamWriter);
-            }
+            element.serialize(streamWriter, preserve);
             streamWriter.writeEndDocument();
         } catch (XMLStreamException xmlse) {
             logger.error(xmlse.getMessage());
